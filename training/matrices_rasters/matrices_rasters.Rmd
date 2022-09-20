@@ -1,0 +1,425 @@
+---
+title: "matrices_rasters"
+author: "aniellima"
+date: "2022-09-19"
+output:
+  html_document: 
+    number_sections: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T)
+library("formatR")
+```
+
+# Chapter 5 Matrices and rasters
+<br>
+From: *[Introduction to Spatial Data Programming with R](http://132.72.155.230:3838/r/matrices-and-rasters.html)*. Consulted in: 09-19-22
+<br>
+
+## Aims
+<br>
+Our aims in this chapter are:
+
+* Start working with spatial data (rasters)
+* Install and use packages beyond “base R”
+* Introduce the basic matrix and array data structures, and their analogous spatial data structure (class stars) for single band and multi-band rasters, respectively
+* Learn to access the cell values and other properties of rasters
+* Learn to access the cell values and other properties of rasters
+* Learn to read and write raster data
+<br>
+
+We will use the following R packages:
+
+* stars
+* mapview
+* cubview
+
+## Matrices
+
+### What's a matrix?
+
+A matrix is a two-dimensional (like a data.frame) collection of values of the same type (like a vector, and unlike a data.frame). The number of values in all columns of a matrix is equal, and the same can be said about the rows. It is important to know how to work with matrices because it is a commonly used data structure, with many uses in data processing and analysis, including spatial data. For example, many R function accept a matrix as an argument, or return a matrix as a returned object. For example, as we will see later on, the st_distance function is used to calculate a distance matrix between all pairs of features in two vector layers (Section 8.3.2.3). Moreover, a matrix is used to store single-band raster values in a stars raster object, which we learn about later on in this chapter (Section 5.3.8.2).
+
+
+### Creating a matrix
+
+A matrix can be created with the matrix function. The matrix function accepts the following arguments:
+
+* data—A vector of the values to fill into the matrix
+* nrow—The number of rows
+* ncol—The number of columns
+* byrow—Whether the matrix is filled by column (FALSE, the default) or by row (TRUE)
+
+For example:
+
+```{r, echo=TRUE, tidy=TRUE}
+x=matrix(1:6, nrow=2,ncol=3)
+x
+```
+Note that18 the class of matrix objects is a vector of length two, with the values "matrix" and "array":
+<br>
+```{r,echo=TRUE}
+class(x)
+```
+<br>
+This implies the fact that the matrix class inherits (Section 1.1.6) from the more general array class (Section 5.2).
+<br>
+<br>
+The nrow and ncol parameters determine the number of rows and number of columns, respectively. When only one of them is specified, the other is automatically determined based on the length of the data vector:
+<br>
+```{r, echo=TRUE}
+  matrix(1:6, nrow=2)
+```
+<br>
+```{r, echo=TRUE}
+  matrix(1:6, ncol = 2)
+```
+<br>
+>Create a matrix with 3 rows and 4 columns which contains the numbers 12-1 in decreasing order.
+
+<br><br>
+```{r}
+  matrix(12:1, ncol = 4, nrow = 3)
+```
+<br>
+What do you think will happen when we try to create a matrix with less, or more, data values than matrix size nrow*ncol? Run the following expressions to find out.
+<br>
+```{r}
+matrix(12:1, ncol = 4, nrow = 2)
+matrix(12:1, ncol = 4, nrow = 4)
+```
+
+<br>
+Create a 3×3 matrix where all values are 1/9.
+<br>
+```{r}
+  matrix(1:9, ncol=3, nrow=3)
+```
+<br>
+Finally, the byrow parameter determines the direction of filling the matrix with data values. In both cases the filling starts from the top-left corner (i.e., row 1, column 1), however with byrow=FALSE the matrix is filled one column at a time (the default), while with byrow=TRUE the matrix is filled one row at a time. For example:
+<br>
+```{r}
+matrix(1:12, nrow = 3)                ## the default (byrow=FALSE)
+```
+<br>
+```{r}
+matrix(1:12, nrow = 3, byrow = TRUE)  ## byrow=TRUE
+```
+
+### matrix properties
+<br><br>
+
+#### Dimensions
+<br>
+To demonstrate several functions for working with matrices, let’s define a matrix named x as shown above (Section 5.1.2):
+```{r}
+x = matrix(1:6, nrow = 2)
+x
+```
+<br>
+The length function returns the number of values in a matrix:
+<br>
+```{r}
+length(x)
+```
+<br>
+Just like with a data.frame (Section 4.1.4.1), the nrow and ncol functions return the number of rows and columns in a matrix, respectively:
+<br>
+```{r}
+nrow(x)
+ncol(x)
+```
+<br>
+Also like with a data.frame, the dim function gives both dimensions of the matrix as a vector of length 2, i.e., number of rows and columns, respectively:
+<br>
+```{r}
+dim(x)
+```
+
+<br>
+For example, R has a built-in dataset named volcano, which is a matrix of surface elevation. The sample script volcano.R, used in Section 2.1.3 to demontrate working with R code files, creates a 3D image of elevation based on that matrix (Figure 2.2).
+<br>
+<br>
+Find out what are the number of elements, rows and columns in the built-in matrix named volcano.
+<br>
+
+```{r}
+as.data.frame(volcano)
+dim(volcano)
+# Volcano is a matrix of 87 rows and 61 columns. 
+```
+<br>
+
+#### Row and column names
+
+<br>
+Like a data.frame (Section 4.1.4.2), matrix objects also have row and column names which can be accessed or modified using the rownames and colnames functions, respectively. Unlike data.frame row and column names, which are mandatory, matrix row and column names are optional. For example, matrices created with matrix initially do not have row and column names:
+<br>
+```{r}
+rownames(x)
+colnames(x)
+
+```
+
+
+<br>
+The matrix row and column names can be initialized, or modified, by assignment to the rownames and colnames properties:
+<br>
+```{r}
+rownames(x) = c("a", "b")
+colnames(x) = c("var1", "var2", "var3")
+x
+```
+<br>
+
+### matrix conversions
+
+<br>
+#### matrix → vector
+
+<br>
+The as.vector function converts a matrix to a vector:
+<br>
+```{r}
+x=matrix(1:6, ncol=3, byrow=T)
+x
+```
+<br>
+```{r}
+as.vector(x)
+```
+<br>
+Note that the matrix values are always arranged by column in the resulting vector!
+
+> Does the volcano matrix contain any NA values? How can we check?
+
+<br>
+#### Matrix -> data.frame
+
+<br>
+The as.data.frame function converts a matrix to a data.frame:
+<br>
+```{r}
+as.data.frame(x)
+```
+
+<br>
+Note that row and column names are automatically generated (if they do not exist) as part of the conversion, since they are mandatory in a data.frame (Section 5.1.3.2).
+<br>
+
+### Trasnporsing a matrix
+
+<br>
+The t function transposes a matrix. In other words, the matrix rows and columns are “switched”—rows become columns and columns become rows:
+<br>
+
+```{r}
+x = matrix(1:6, ncol = 3)
+x
+```
+```{r}
+t(x)
+```
+> What will be the result of t(t(x))
+
+```{r}
+t(t(x))
+```
+<br>
+
+###  Image with contours
+
+<br>
+Using the image and contour functions we can graphically display matrix values in the form of a heatmap—where values are encoded to colors—and a contour layer, respectively.
+<br><br>
+The color scale in image can be set with col. R has several built-in color scale functions—such as terrain.colors and heat.colors—that return a specified number of color codes from the given color scale. The hcl.colors function offers a wide range of color scales useful for mapping, including the well-known ColorBrewer scales. The hcl.colors function requires the number of colors and the name of the color scale. For example, the following expression returns 11 colors from the "Spectral" color scale:
+<br>
+```{r}
+hcl.colors(11, "Spectral")
+```
+<br>
+> Try replacing terrain.colors(30) with heat.colors(30), or with hcl.colors(11, "Spectral"), to see an image of the volcano matrix with other color scales. You can run hcl.pals() to get a list of possible scale types passed to hcl.colors (other than "Spectal") and try some of those too.
+
+```{r}
+image(volcano, col = heat.colors(30), asp = ncol(volcano) / nrow(volcano))
+contour(volcano, add = TRUE)
+```
+
+```{r, results='hide'}
+hcl.pals()
+```
+
+<br>
+Note that the argument<br>
+asp=ncol(volcano)/nrow(volcano) makes sure the ratio between the x and y axes is 1:1, i.e., that the image cells are rectangular19.
+<br>
+
+### Matrix subsetting
+
+#### Individual rows and columns
+
+<br>
+Similarly to what we learned about data.frame (Section 4.1.5), matrix indices are two-dimensional. The first value refers to rows and the second value refers to columns. For example:
+<br>
+```{r}
+x
+```
+```{r}
+x[2,1]
+```
+
+```{r}
+x[1,3]
+```
+<br>
+The following examples subset the volcano matrix:
+<br>
+```{r}
+volcano[20, 40]  # Row 20, column 40
+volcano[81, 61]  # Row 81, column 61
+```
+<br>
+> How can we find out the top-right corner value of volcano?
+
+<br>
+Complete rows or columns can be accessed by leaving a blank space instead of the row or column index. By default, a subset that comes from a single row or a single column is simplified to a vector:
+<br>
+```{r}
+x[2, ]  # Row 2
+```
+
+```{r}
+x[, 2]  # Column 2
+```
+<br>
+To “suppress” the simplification of individual rows/columns to a vector, we can use the drop=FALSE argument (Section 4.1.5.3):
+<br>
+```{r}
+x[2, , drop = FALSE]  # Row 2
+```
+```{r}
+x[, 2, drop = FALSE]  # Column 2
+```
+<br>
+When referring to an elevation matrix, such as volcano, any given row or column subset is actually an elevation profile. For example, the following expressions extract two elevation profiles from volcano:
+<br>
+```{r}
+r30 = volcano[30, ]  # Row 30
+r70 = volcano[70, ]  # Row 70
+```
+<br>
+Figure 5.2 graphically displays those profiles (Section 3.2.1):
+<br>
+```{r}
+plot(r30, type = "o", col = "blue", ylim = range(c(r30, r70)), ylab = "Elevation (m)")
+lines(r70, type = "o", col = "red")
+```
+
+<br>
+Figure 5.3 shows the location of the two profiles in a 3D image of volcano.
+<br>
+
+#### Subsets with >1 row or column
+
+<br>
+We can also use vectors of length >1 when subsetting:
+<br>
+
+```{r}
+x
+x[, 1:2]
+```
+```{r}
+x
+x[2, c(1,3)]
+
+```
+```{r}
+x
+x[2, c(1,3), drop=F]
+
+```
+<br>
+We can assign new values to subsets of a matrix:
+<br>
+```{r}
+m = matrix(NA, ncol = 3, nrow = 3)
+m
+```
+```{r}
+m[2:3, 1:2] = 1
+m
+
+```
+```{r}
+m[1:2, 2:3] = 100
+m
+```
+<br>
+
+### Summarizing rows and columns
+
+<br>
+How can we calculate the row or column means of a matrix? One way is to use a for loop (Section 4.2.3), as follows:
+
+```{r}
+result = rep(NA, nrow(volcano))
+for(i in 1:nrow(volcano)) {
+  result[i] = mean(volcano[i, ])
+}
+length(result)
+```
+
+<br>
+The resulting vector of row means can be visualized as follows (Figure 5.4):
+<br>
+```{r}
+plot(result, type = "b", xlab = "Row", ylab = "Elevation (m)")
+```
+
+> What changes do we need to make in the for loop code to calculate column means?
+
+<br>
+We can use the apply function (Section 4.5) to do the same, using much shorter code:
+<br>
+
+```{r}
+result = apply(volcano, 1, mean)
+```
+
+> What changes do we need to make in the apply expression to calculate column means?
+
+<br>
+```{r}
+result = apply(volcano, 2, mean)
+length(result)
+```
+<br>
+Moreover, for the special case of mean there are further shortcuts, named rowMeans and colMeans20:
+<br>
+```{r}
+result = colMeans(volcano)
+```
+<br>
+Note: in both cases we can use na.rm to determine whether NA values are included in the calculation (default is FALSE).
+
+> How can we check whether the above two expressions give exactly the same result?
+
+
+## Arrays 
+
+<br>
+
+### Creating an array
+<br>
+An array is a data structure that contains values of the same type and can have any number of dimensions. We may therefore consider a vector (1 dimension) and a matrix (2 dimensions) as special cases of an array. In this scope of this book, we will be dealing only with three-dimensional arrays, which—as we will see later on (Section 5.3.8.2)—are used to store multi-band raster values in stars raster objects.
+<br><br>
+An array can be created with the array function, specifying the values (data) and the required dimensions (dim). Note that creating arrays, with the array function, is very similar to the way we create matrices, with the matrix function—just more general. For example, the following expression creates an array with the values 1:24 and three dimensions—2 rows, 3 columns and 4 “layers” (Figure 5.5):
+<br>
+```{r}
+y = array(data = 1:24, dim = c(2, 3, 4))
+y
+```
+### Array subsetting
+
