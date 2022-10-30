@@ -1,0 +1,198 @@
+---
+title: "SHP_preparacao"
+author: "aniellima"
+date: "2022-10-26"
+output:
+  html_document: 
+    df_paged: TRUE
+    number_sections: TRUE
+---
+
+```{r, eval=FALSE}
+knitr::opts_chunk$set(echo=FALSE, error=FALSE, warning=FALSE, message=FALSE)
+```
+
+
+```{r, eval=FALSE}
+library(pacman)#carrega multiplos pacotes simultaneamente
+p_load(tidyverse, dplyr, tidylog, sf, units, raster,terra, rasterVis, rgeos,pinyin, rgeos)
+```
+
+
+* Arquivos em SHP - Fonte: 
+[GaryBikini/ChinaAdminDivisonSHP: v2.0, 2021, DOI: 10.5281/zenodo.4167299](https://github.com/GaryBikini/ChinaAdminDivisonSHP)
+```{r, eval=FALSE}
+chinaShp<-st_read("../rawData/shp/ChinaShp/1_Country/country.shp")%>%st_set_crs(4326)
+provincesShp<-st_read("../rawData/shp/ChinaShp/2_Province/province.shp")%>%st_set_crs(4326)
+citiesShp<-st_read("../rawData/shp/ChinaShp/3_City/city.shp")%>%st_set_crs(4326)
+districtsShp<-st_read("../rawData/shp/ChinaShp/4_District/district.shp")%>%st_set_crs(4326)
+```
+ 
+
+
+* Traduz as colunas '*_names' em pinyin
+
+```{r, eval=FALSE}
+# Vetores para traduzir a unidade de analise de cada base 
+# Distritos
+dt_pinyin<-py(districtsShp$dt_name, sep = " ", dic=pydic(method = c("toneless"), multi = FALSE,
+        only_first_letter = FALSE, dic = c("pinyin2")))
+
+# Cidades
+ct_pinyin<-py(citiesShp$ct_name, sep = " ", dic=pydic(method = c("toneless"), multi = FALSE,
+        only_first_letter = FALSE, dic = c("pinyin2")))
+
+# Provincias
+pr_pinyin<-py(provincesShp$pr_name, sep = " ", dic=pydic(method = c("toneless"), multi = FALSE,
+        only_first_letter = FALSE, dic = c("pinyin2")))
+
+```
+
+
+* Unifica vetores com a respectiva base e realiza join com base superior(distritos, cidades e provincias)
+```{r, eval=FALSE}
+districtsShp<-cbind(dt_pinyin,districtsShp)
+citiesShp<-cbind(ct_pinyin,citiesShp)
+provincesShp<-cbind(pr_pinyin,provincesShp)
+
+
+# realiza o join com a base superior (cidades com provincias)
+citiesShp<-left_join(citiesShp, provincesShp %>%as.data.frame() %>%dplyr::select(-geometry), by=c("pr_adcode","pr_name", "cn_adcode","cn_name"))
+
+# ordena variaveis
+citiesShp<-citiesShp%>%dplyr::select(ct_adcode, ct_pinyin, ct_name, pr_adcode, pr_pinyin, pr_name, cn_adcode, cn_name)
+
+# realiza o join com a base superior (distritos com cidades)
+districtsShp<-left_join(districtsShp,citiesShp %>%as.data.frame() %>%dplyr::select(-geometry), by=c("ct_adcode","ct_name","pr_adcode", "pr_name", "cn_adcode","cn_name"))
+# ordena variaveis
+districtsShp<-districtsShp%>%dplyr::select(dt_adcode,dt_pinyin,dt_name,ct_adcode, ct_pinyin, ct_name, pr_adcode, pr_pinyin, pr_name, cn_adcode, cn_name)
+```
+
+
+
+* Calcula a as área em Km2 por nivel administrativo
+
+    +  Nivel 1
+
+```{r, eval=FALSE}
+# transforma um objeto shp em vetor.
+areaChina <- chinaShp%>%vect()
+
+# calcula a area do vetor em m2. Divide-se por 1.000.000 para chegar em km2
+areaChina$AREA_KM_2 <- expanse(areaChina) / 1000000
+
+# retorna ao sistema de projeão anterior
+chinaShp<-areaChina%>%st_as_sf(coords=c("x","y"), 
+                                  crs=4326)
+```
+
+
+  +   Nivel 2
+```{r, eval=FALSE}
+# transforma um objeto shp em vetor.
+provinciasArea <- provincesShp%>%vect()
+
+# calcula a area do vetor em m2. Divide-se por 1.000.000 para chegar em km2
+provinciasArea$AREA_KM_2 <- expanse(provinciasArea) / 1000000
+
+# retorna ao sistema de projeão anterior
+provincesShp<-provinciasArea%>%st_as_sf(coords=c("x","y"), 
+                                  crs=4326)
+```
+
+  +   Nivel 3
+
+```{r, eval=FALSE}
+# transforma um objeto shp em vetor.
+cidadesArea <- citiesShp%>%vect()
+
+# calcula a area do vetor em m2. Divide-se por 1.000.000 para chegar em km2
+cidadesArea$AREA_KM_2 <- expanse(cidadesArea) / 1000000
+
+# retorna ao sistema de projeão anterior
+citiesShp<-cidadesArea%>%st_as_sf(coords=c("x","y"), 
+                                  crs=4326)
+```
+
+  +   Nivel 4
+```{r, eval=FALSE}
+# transforma um objeto shp em vetor.
+distritosArea <- districtsShp%>%vect()
+
+# calcula a area do vetor em m2. Divide-se por 1.000.000 para chegar em km2
+distritosArea$AREA_KM_2 <- expanse(distritosArea) / 1000000
+
+# retorna ao sistema de projeão anterior
+districtsShp<-distritosArea%>%st_as_sf(coords=c("x","y"), 
+                                  crs=4326)
+```
+
+* Secciona a região de interesse: Tianshan
+
+```{r, eval=FALSE}
+### Tian Shan Region
+tianShanShp<-districtsShp%>%filter(pr_adcode==650000)%>%
+ filter(ct_adcode==650100|ct_adcode==650200|ct_adcode==650400|ct_adcode==652300|ct_adcode==652700|ct_adcode==654000|ct_adcode==654200|ct_adcode==652300|ct_adcode==652800|ct_adcode==659004|ct_adcode==659001|ct_adcode==659010|ct_adcode==653007|ct_adcode==659007|ct_adcode==659008)%>%
+  filter(dt_adcode!=652801&dt_adcode!=652822&dt_adcode!=652823&dt_adcode!=652824&dt_adcode!=652825)
+```
+
+
+* Atribui a cada unidade uma coordenada xy
+  +   Tianshan
+  
+```{r, eval=FALSE}
+#Creating XY coordinations for the shp and join it with the the shp file
+centroid <- gCentroid(as(tianShanShp, "Spatial"), byid = TRUE)
+tianShanShp<-cbind(tianShanShp, centroid)
+```
+  
+  + Districts
+  
+```{r, eval=FALSE}
+centroid <- gCentroid(as(districtsShp, "Spatial"), byid = TRUE)
+districtsShp<-cbind(districtsShp, centroid)
+```
+
+  +   Cities
+  
+```{r, eval=FALSE}
+centroid <- gCentroid(as(citiesShp, "Spatial"), byid = TRUE)
+citiesShp<-cbind(citiesShp, centroid)
+```
+
+  +   Provinces
+  
+```{r, eval=FALSE}
+centroid <- gCentroid(as(provincesShp, "Spatial"), byid = TRUE)
+provincesShp<-cbind(provincesShp, centroid)
+```
+
+  +   China
+  
+```{r, eval=FALSE}
+centroid <- gCentroid(as(chinaShp, "Spatial"), byid = TRUE)
+chinaShp<-cbind(chinaShp, centroid)
+```
+
+* Salva os arquivos em documentos processados para cruzar com os dados dos arquivos em raster. 
+
+  * O pacote 'sf' não possui a funcao de overwrite. No lugar ele sobrepoe os novos shapes aos já existentes, que pode atrapalhar quando tentarmos porjetar e unir com outros bancos posteriormente. Para evitar isso, iremos executar a funcao abaixo que apaga todos os arquivos na pasta '/processedData/shp' e nas respectivas subpasta.  
+```{r, eval=FALSE}
+# Salva todos os arquivos em uma pasta 
+atalho <- '../processedData/shp'
+if (file.exists(atalho)) {
+    #Delete file if it exists
+  a <- list.files(atalho, include.dirs = F, full.names = T, recursive = T)
+    file.remove(a)
+}
+
+```
+
+
+```{r, eval=FALSE}
+chinaShp%>%st_write("../processedData/shp/china/china.shp")
+provincesShp%>%st_write("../processedData/shp/provinces/provinces.shp")
+citiesShp%>%st_write("../processedData/shp/cities/cities.shp")
+districtsShp%>%st_write("../processedData/shp/districts/districts.shp")
+tianShanShp%>%st_write("../processedData/shp/tianshan/tianshan.shp")
+```
