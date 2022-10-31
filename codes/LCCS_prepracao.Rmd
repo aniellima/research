@@ -1,0 +1,276 @@
+---
+title: "LCCS_preparacao"
+author: "aniellima"
+date: "2022-11-01"
+output: html_document
+---
+
+
+```{r}
+library(tidyverse)
+library(terra)
+library(raster)
+library(rasterVis)
+library(stars)
+library(sf)
+library(rgdal)
+library(diffeR)
+library(ncdf4)
+```
+
+
+
+
+
+```{r}
+r92 <-rast("../rawData/landcover/global/ESACCI-LC-L4-LCCS-Map-300m-P1Y-1992-v2.0.7cds.nc")
+r00 <- rast("../rawData/landcover/global/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2000-v2.0.7cds.nc")
+r05 <- rast("../rawData/landcover/global/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2005-v2.0.7cds.nc")
+r10 <- rast("../rawData/landcover/global/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2010-v2.0.7cds.nc")
+r15 <- rast("../rawData/landcover/global/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2015-v2.0.7cds.nc")
+r20 <- rast("../rawData/landcover/global/C3S-LC-L4-LCCS-Map-300m-P1Y-2020-v2.1.1.nc")
+```
+
+
+
+```{r}
+names(r00)
+```
+
+
+
+
+```{r}
+lc92 <- r92[[1]]
+lc00 <- r00[[1]]
+lc05 <- r05[[1]]
+lc10 <- r10[[1]]
+lc15 <- r15[[1]]
+lc20 <- r20[[1]]
+```
+
+
+```{r}
+lc92<-raster(lc92)
+names(lc92) = "lccs92"
+lc00<-raster(lc00)
+names(lc00) = "lccs00"
+lc05<-raster(lc05)
+names(lc05) = "lccs05"
+lc10<-raster(lc10)
+names(lc10) = "lccs10"
+lc15<-raster(lc15)
+names(lc15) = "lcc15"
+lc20<-raster(lc20)
+names(lc20) = "lccs20"
+```
+
+
+```{r}
+globalLC <- stack(lc92,lc00,lc05,lc10,lc15,lc20)
+```
+
+
+
+```{r}
+names(globalLC )
+```
+
+
+```{r}
+tianShanOutShp<-sf::st_read("../processedData/shp/tianshan/tianShanOutter.shp")
+```
+
+
+```{r}
+tianShanShp<-tianShanOutShp
+# crop
+tianS.crop <- crop(globalLC, extent(tianShanShp))
+# mask
+tianShanLC<- mask(tianS.crop, tianShanShp)
+```
+
+
+* Frequencia contagem de celulas com uso de solo urbano por periodo
+```{r}
+names(tianShanLC)
+# Calcula a frequencia por Layer(periodo)
+freq92<-freq(tianShanLC[[1]])
+freq00<-freq(tianShanLC[[2]])
+freq05<-freq(tianShanLC[[3]])
+freq10<-freq(tianShanLC[[4]])
+freq15<-freq(tianShanLC[[5]])
+freq20<-freq(tianShanLC[[6]])
+
+#Unifica os bancos e o transforma em df.
+freq<-cbind(freq92,freq00,freq05,freq10,freq15,freq20)%>%as_tibble()
+names(freq)
+```
+
+```{r}
+#Seleciona e renomeia varáveis de interesse:
+freq<-freq%>%dplyr::select(1,2,4,6,8,10,12)%>%rename("1992"=count,
+                                               "2000"=V4,
+                                               "2005"=V6,
+                                               "2010"=V8,
+                                               "2015"=V10,
+                                               "2020"=V12)
+```
+
+```{r}
+names(freq)
+```
+
+```{r}
+#Transforma em longo
+freq<-freq%>%dplyr::select(value,`1992`,`2000`,`2005`,`2010`,`2015`,`2020`)%>%pivot_longer(cols=c(`1992`,`2000`,`2005`,`2010`,`2015`,`2020`), names_to="Ano", values_to="Pixels")
+
+#Transforma categorias em variável categórica
+freq$value <- as.character(freq$value)
+
+#renomeia value para lccs  
+freq<-freq%>%rename(lccs=value)# transform lccs em categoria
+
+#ordena por anos
+freq<-freq%>%mutate(Ano=fct_relevel(Ano, "1992", "2000", "2005", "2010", "2015", "2020"))
+```
+
+
+```{r}
+# filtra e projeta quantidade de área de uso urbano
+urbanG<-freq%>%filter(lccs=="190")%>%ggplot(aes(x=Ano, y=Pixels))+geom_bar(stat="identity", width=0.5, fill="#69b3a2")+theme_bw()+ ggtitle("Evolucao do uso urbano (2000-2020)") 
+urbanG
+```
+
+```{r}
+urbanT<-freq%>%filter(lccs=="190")
+urbanT
+```
+
+
+* Como o grafico e a tabela acima demontram, a varicao de Pixels entre 1992 e 2000 é baixa. Apesar de terem sido neste ano que as Zonas Economicas foram criadas. Aparentemente nota-se aumento expresico no uso do solo urbano apena a partir de 2005, quando já haviam se passado cinco anos desde o lancamento das politicas de desenvovivimento do Oeste. Esta tendencia de aumento da cobertura urbana se acentua nos anos seguintes e em 2020 a quantidade Pixels é de 23.950, mais de seis vezs o quantitativo apurado em 1992.
+
+```{r}
+#idetifica as categorias em cada layer
+cat92<-unique(tianShanLC[[1]])%>%tibble()
+cat00<-unique(tianShanLC[[2]])%>%tibble()
+cat05<-unique(tianShanLC[[3]])%>%tibble()
+cat10<-unique(tianShanLC[[4]])%>%tibble()
+cat15<-unique(tianShanLC[[5]])%>%tibble()
+cat20<-unique(tianShanLC[[6]])%>%tibble()
+
+#verifica se as mesmas categorias existem para os 4 layers. 
+cbind(cat92,cat00,cat05,cat10,cat15,cat20)
+```
+
+* Importa a tabela de categorias, códigos e cores dos arquivos documentation disponíveis no portal do [CDS](https://cds.climate.copernicus.eu/cdsapp#!/dataset/satellite-land-cover?tab=doc)
+
+```{r}
+lccsCodes<- read_delim("../rawData/landcover/lccsCodes.csv", col_types = "iiccccc")#importa tabela csv identificado o tipos de variáveis
+```
+
+
+```{r}
+names(lccsCodes)
+```
+
+
+```{r}
+lccsCodes %>% distinct(global_code,IPCC_class,IPCC_color_code)
+```
+
+* Conforme pode ser verificado, o sistema LCCS possui 22 categorias, mas muitas delas podem ser agrupada para permitir identificar melhor um fenomeno de interesse. 
+
+* Por essa razão escolhemos a classificacao usada pela IPCC, citada no arquivos documentacao dos bancos de dados. 
+
+```{r}
+lccsCodes %>% distinct(IPCC_class,IPCC_color_code)
+```
+
+* Com o agrupamento, reduzimos as categorias de 22 para 8. 
+
+
+* Agora vamos selecionar e criar uma nova tabela chamada 'colors', cujos códigos e cores sevirão de base para plotar as imagens: 
+```{r}
+colors<-lccsCodes %>% dplyr::select(lccs_class,IPCC_class,IPCC_color_code)
+colors<-colors %>% rename(ID=lccs_class,color=IPCC_color_code)
+```
+
+
+
+* precisamos tranformar nossas varivel dentro do arquivo raster em categorica. Para tanto utilizamos da fucao ratify do pacote __raster__
+```{r}
+# precisamos tranformar Use ratify to transform lccs00 in categorical
+lc92 = ratify(tianShanLC[[1]])
+lc00 = ratify(tianShanLC[[2]])
+lc05 = ratify(tianShanLC[[3]])
+lc10 = ratify(tianShanLC[[4]])
+lc15 = ratify(tianShanLC[[5]])
+lc20 = ratify(tianShanLC[[6]])
+```
+
+
+* Verificamos anteriormente que embora nosso recorte contenha menos categorias que o total presente no globo, entre os 6 periodos em questao as categorias nao variam para o recorte. Por isso é seguro criar um objeto chamado cat a partir de qualquer dos layers, transforma-lo em  e fazer um left join com o df de cores. 
+
+```{r}
+cat<-levels(lc92)%>%data.frame()
+
+colors<-cat %>% left_join(colors, by="ID")
+csort = colors %>% arrange(ID)
+csort = colors[order(colors$ID),]
+```
+
+```
+csort = colors[order(colors$ID),] 
+```
+
+
+
+* Muito embora nossas categorias tenham sido classificadas como fatores ordenados, o fato de serem representadas por "numeros" podem gerar confusão. Sendo assim, vamos incluir uma outra variavel para que as categorias estejam sejam de fato concebidas com "strings". 
+```{r}
+# create variable with string for code starting with LC-
+levels(lc92)[[1]]$code = paste0("LC-",levels(lc92)[[1]]$ID)
+levels(lc00)[[1]]$code = paste0("LC-",levels(lc00)[[1]]$ID)
+levels(lc05)[[1]]$code = paste0("LC-",levels(lc05)[[1]]$ID)
+levels(lc10)[[1]]$code = paste0("LC-",levels(lc10)[[1]]$ID)
+levels(lc15)[[1]]$code = paste0("LC-",levels(lc15)[[1]]$ID)
+levels(lc20)[[1]]$code = paste0("LC-",levels(lc20)[[1]]$ID)
+```
+
+
+* Por fim, juntamos todos os nossos layer em um só raster. 
+
+```{r}
+tianShanLC <- stack(lc92,lc00,lc05,lc10,lc15,lc20)
+```
+
+* Podemos projeta-los de uma só vez como o levelplot do pacote lattice
+
+```{r}
+levelplot(tianShanLC,col.regions=csort$color)
+```
+
+* Ou fazer projecoes comparativas como esse que para os anos de 1992 e 2020
+
+```{r}
+levelplot(tianShanLC[[1]],col.regions=csort$color)
+levelplot(tianShanLC[[6]],col.regions=csort$color)
+```
+
+* Vamos visualizar novamente esse contratra a partir de uma gráfico: 
+
+
+```{r}
+urbanG
+```
+
+* Vamos salvar nossa base em tiff. 
+
+```{r}
+writeRaster(tianShanLC, "../rawData/landcover/tianshan/tianshan.tif", overwrite=TRUE)
+```
+
+
+* Agora vamos verificar a disposicão do uso urbando por cidade e distrito nesse mesmo recorte. 
+
+

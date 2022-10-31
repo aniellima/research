@@ -1,0 +1,91 @@
+---
+title: "land_preparacao"
+author: "aniellima"
+date: "2022-10-26"
+output:
+  html_document: 
+    df_paged: TRUE
+    number_sections: TRUE
+---
+
+
+```{r, eval=FALSE}
+knitr::opts_chunk$set(echo=FALSE, error=FALSE, warning=FALSE, message=FALSE)
+```
+
+
+```{r, eval=FALSE}
+library(pacman)#carrega multiplos pacotes simultaneamente
+p_load(tidyverse, dplyr, tidylog, sf, units, raster,terra, rasterVis, ecmwfr, purrr, ncdf4)
+```
+
+
+```{r}
+library("ecmwfr")
+# set a key to the keychain
+wf_set_key(user = "149149",
+           key = "8d597387-e18c-47f3-b030-c9d8d250b7e1",
+           service = "cds")
+
+```
+
+```{r}
+request <- list(
+  variable = "all",
+  format = "tgz",
+  year = "2015",
+  version = "v2.0.7cds",
+  dataset_short_name = "satellite-land-cover",
+  target = "download.tar.gz"
+)
+```
+
+
+
+```{r}
+# Start downloading the data, the path of the file
+# will be returned as a variable (ncfile)
+ncfile <- wf_request(
+  user = "149149",
+  request = request,   
+  transfer = TRUE,  
+  path = "../rawData/landcover/global",
+  verbose = FALSE
+  )
+```
+
+
+
+```{r}
+path = "../rawData/landcover/global"
+
+untar(ncfile, list=T)
+untar(ncfile, exdir=path)
+```
+
+
+
+```{r}
+ncfile <-"../rawData/landcover/global/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2000-v2.0.7cds.nc"
+
+r <- raster::raster(ncfile)
+raster::plot(r, main = "land use (2000)")
+maps::map("world", add = TRUE)
+```
+
+
+```{r}
+library(terra)
+r <- rast(ncfile)
+```
+
+
+
+```{r}
+head(varnames(r)[[1]])
+```
+
+```{r}
+
+```
+

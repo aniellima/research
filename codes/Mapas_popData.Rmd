@@ -1,0 +1,514 @@
+---
+title: "Mapas_popData"
+author: "aniel_lima_santos"
+date: '2022-11-03'
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+  pdf_document: default
+---
+
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, error = FALSE)
+```
+
+```{r Library}
+library(devtools)
+library("readxl")
+library("viridis")
+library(broom)
+library("tidyverse")
+library("tidylog")
+library("sf")
+library("dplyr")
+library("mice")
+library("readxl")
+library("viridis")
+library(ggtech)
+library(gridExtra)
+library(ggplot2)
+library("ggthemes")
+library(scales)
+library(giscoR)
+library("knitr")
+library("kableExtra")
+```
+
+
+
+
+### Introdução
+\
+\
+O objetivo deste relatório é descrever o processo de levantamento, organização e analise de evidências estatístas a respeito do processo de urbanização na chinesa desde a política de reforma e abertura, ao final da década de 1970 até 2010.
+\
+\
+Acredita-se que a partir de uma etapa de levantamento de evidências geral, podemos obter indícios que possibilitem avaliar o potencial das políticas recentes aplicadas desde 2016, ano de lançamento do XVI Plano Quinquenal para o desenvolvimento das regiões ocidentais chinesas.
+\
+\
+Para desenvolver esse desafio a China optou por implementar pólos econômico, ou Zonas Econômicas especiais.  Trata-se de uma política bastante difundida desde o período incial de Reforma e Abertura empreendida ao final da década de 1970 por Deng Xiaoping. A implantação destas pólos, tem coincidido atração de investimentos externos, a modernização econômica e a aceleração do processo de urbanização. 
+\
+
+### Bases de dados 
+
+\
+A partir da analise de 2 bancos de dados um sobre aglomerações urbanas na China e outro sobre Zonas Economicas Especiais, pretendemos verificar se a implantação de ZEEs se há indicios de correlação com o crescimento urbando no ambito da Provincia (ou Região Autonoma) na China.
+\
+\
+O primeiro banco foi organizado por [Elfie Swerts](https://journals.openedition.org/cybergeo/28554) e conta com mais de 9 mil observações de áreas urbanas em 4 periodos: 1982, 1990, 2000 e 2010. A apuração das aglomerações foi realizada pelo cruzamento de dados estatístico reunidos pelo *China Data Center* Universidade de Michigan e com imagens de satélite do ano do 2000 com resolução aproximadamente 2.134 metros de altura.
+\
+\
+A pesquisadora verificou um grandes discrenpância entre o número de aglomerações noticiados pelo escritório de estatisca oficial e o verificado pelo cruzamento dos dados e das imagens de satélite. 
+\
+\
+Foram identificadas 9.525 aglomerações, ao passo que o registro oficial computava 657 cidades. Essa discrepancia ocorre por uma problema no levantamento oficial que considera como cidade áreas que estão sob a administração de um centro urbano, mas que na realidade são agrárias. Assim, o que a pesquisadora verificou foi que em uma mesma prefeitura pode haver uma miríade de outras cidades que se intercalam com áreas rurais dentro de um mesmo limite jurídico.
+\
+\
+Pretendemos analisar algumas estatísticas descritivas desse banco a fim de verificar ao alterções na população urbana no período de 1982 à 2010. Como ainda não temos acesso a base de dados de indicacores econômicos(PIB per capta) e sociais(IDH) em níveis inferiores ao de provincia, verificaremos se os dados verificado no banco de cidade fornecem algum subsídio para compreender como se comportam esse indicadores. O bancos de IDH  foi obtido pela base da Global Data Lab [Global Data Lab](https://globaldatalab.org/shdi/) 
+\
+\
+Adicionalmente, realizaremos breve analise da distribuição ZEE no terriório chinês de 1980 até 2006. O banco de Zonas Econoômicas Especias foi organizado por [Jin Wang](https://www.sciencedirect.com/science/article/abs/pii/S0304387812000934) e conta com 1679 observações, cada uma constituindo uma ZEE  estabelecida na China pelos níveis de governança central e provincial entre 1980 e 2008. 
+\
+\
+Uma vez que se tratam de bancos bastante heterogênos, foram trabralhados anteriormente em outro scritp e salvos em .csv dentro da lista DadosChina, que por sua vez foi salva como arquivo .RData no  para que pudessem ser analisados nesse relatórios. 
+\
+\
+Para ter os arquivos .csv em formato de tibble, fizemos a leitura da lista completa atribuindo o nome a cada um dos 09 objetos com set_names( ) antes de map(read_csv) e por fim salvamos em formato .RData para possiblitar que pudesse ser trabalhados em qualquer script do R sem precisar ler novamente o arquivo .csv
+\
+\
+Abaixo, o código para carregar  a lista de arquivos:  
+
+
+```{r China_tb, echo=TRUE}
+load("../processedData/dataSet/China_tb.RData")
+```
+
+\
+A base arquivo shp, foi importado da biblioteca [Dataverse](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/DBJ3BX) da Universidade de Harvard. Também passou por preparação em script anterior, sobretudo para a inclusão de identificadores e alteração de nomes para que tivesse identificadores comuns como os tibbles de China_df. 
+\
+```{r China.shp, echo=TRUE}
+load("../processedData/dataSet/ChinaAdm1.RData")
+```
+\
+\
+Podemos realizar analise de cada tibble e mesmo junta-los para obter alguns indices, como variação percentual da população urbana ou IDH.\
+\
+\
+Os tibbles  presente na lista China_tb são: *`r China_tb%>%names()`*.\
+\
+\
+Como excessão do tibble *FDI* todos os demais possuim identificadores em comum entre si e com a base shp.
+\
+\
+Vamos começar analisando o tibble de *Cities*. 
+\
+\
+Trata-se de um banco com `r nrow(China_tb$Cities)` observações. As de Os identificadores unicos são **Code** e  **Municipality**. Teoricamente  cada code deveria ser uma obserção diferente, ocorre que as Municipalidades de *Huanghuatang* e *Huangji* na província de Jiangsu possuem o mesmo Codigo: 
+
+```{r, echo=TRUE}
+cities<-China_tb$cities
+cities %>% count(Code) %>% filter(n > 1)
+
+cities%>%filter(Code=="CNHUA3208D")
+```
+
++ **Sobre os NA**
+Existem 62 NAs para os identificadores comuns. Estes foram incorporados no script de preparação por meio da função rbind( ) para permitir o cruzamento das das informações do tibbles de cidades com o de ZEEs. O Banco de cidades possuia originalemnte 9487 observações e quando realizavamos a junção com o tibble de ZEE para aproveitar as coordenadas geográficas do primeiro, perdiamos mais de 252 observações no tibble de ZEEs. Assim decidimos buscar as coordenadas geográficas de 62 cidades onde havia onde estão registradas estas ZEEs e unimos com o banco de cidades.  Quando o banco ajustado a nosso objetivos para esse script e juntamos com ZEE não perdemos uma quantidade tão altas de observações. Uma vez regitrada essa informação, sigamos com a analise: O banco a população de `r cities%>%nrow()` municipalidades nos anos de 1982, 1990, 2000 e 2010. Neste caso cada ano é uma variável. Preparamos um banco longo, os anos são transportados para a variável **Year**. 
+
+```{r}
+Lg_Cities<- China_tb$Lg_Cities
+```
+
+\
+Este banco por sua vez multiplica a quandidade de linhas por 4. Assim o banco de Lg_Cities possui `r Lg_Cities%>%nrow()` observações. As observações possuem coordenadas de Longitude e Latitude. Assim podemos utilizar um arquivo shp para projetar esse pontos no num mapa. 
+
+\
+Vamos ler arquivo simple feature(sf) com ggplot( ):
+
+```{r}
+ChinaAdm1%>%ggplot()+geom_sf(fill="#b3e2cd", collor="white",size=0.1)+theme_bw(8)
+```
+\
+Agora vamos projetar na base acima os pontos do arquivo de cidades com o ano mais recente do banco. 
+\
+```{r Provincias}
+Provincias<-China_tb$Provincias
+```
+
+
+```{r Mapa_municipalidades}
+ChinaAdm1%>%ggplot()+
+  geom_sf(fill="#b3e2cd", collor="white",size=0.1)+
+  geom_point(data=Lg_Cities%>%filter(Year==2010), 
+             aes(x=Long, y=Lat),  size=.01, colour = "#d95f02")+
+    geom_text(data = Provincias, aes(x=Long, y=Lat,label = Province),size=2.5, color="#404040")+
+    labs(title = "China - Aglomerações urbanas em 2010",
+       x=" ",
+       y=" ",
+       subtitle =" ",
+       caption = "A. Lima. ggplot2 - Fonte: base ChinaCities",
+       size = "") +
+  theme(axis.text.x = element_text(size=4),
+          axis.text.y = element_text(size=4),
+          axis.title.x = element_text(size=0),
+          axis.title.y = element_text(size=0),
+        plot.title = element_text(size=12))+
+    theme(legend.position = "bottom")+
+  theme_bw()
+```
+\
+\
+Verifica-se uma notável concentração de municipalidades porções Centro-Lestes da China, a partir do Norteste, onde encontram-se a capital Beijing,  passando pela região metrópolitana de Shanghai no delta do Rio Azul(Yangzi), por metróles do Centro como Chongqing e Chengdu, até o Sudeste. A distribuição conforma-se de acordo com padrão descrito pelo geógrafo Hu Huayong, que desenhou no começo do século XX uma linha para espressar o contraste entre uma China povoada majoritamente por chineses da etnia Han e uma China com menor densidade demográfica, povoada majoriamente por minorias étnicas. A imagem abaixo tráz o croqui desenhado por Hu. O traçado feito pelo geógrafo ficou conhecido por linha de Hu.  
+\
+\
+**Linha de Hu Huayong**
+
+```{r, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE, out.width="70%", fig.align="center", fig.cap="Carta desenha a mão por Hu Huayong demonstrando a densidade de população que separa o território chinês em 2 macro-regiões  - Credit: Chinese Journal of Geography(1935) - Domínio Publico\\label{img:Hu Line}"}
+  knitr::include_graphics("../processedData/dataSet/Hu_line.WEBP")
+```
+\
+\
+O Mapa de aglomerações é revela um fenômento interessante de concentração espacial de cidades. Entretanto, a sua base de dados é diversa em termos de quantitativo de população.
+\
+\
+A planilha abaixo sumariza os valores dados da população para para as glomerações urbanas em quatro momentos. 
+
+```{r}
+Tabela_1<-Lg_Cities%>%group_by(Year)%>%
+  summarise(Max=max(Population, na.rm = T),
+            Min=min(Population, na.rm=T),
+            Amplitude=(Max-Min),
+            Mean=mean(Population, na.rm=T), 
+            SD=sd(Population, na.rm=T), 
+            MsD=(SD/Mean))
+
+kable(Tabela_1, caption = "**Tabela 1. Resumo da população urbana por ano**", 
+        col.names = c("Ano", "Máximo", "Mínimo", "Amplitude", "Média", "Desvio Padrão", "Razão desvio/média"), 
+        digits=1, format.args=list(big.mark=".", decimal.mark=","))%>%
+  kable_styling()%>%
+  footnote(general = "A. Lima - Fonte: ChinaCities",  general_title = " ")
+```
+\
+A Tabela 1. demonstra os valores mínimos e máximo da população urbana para cada ano do banco do banco de dados oringinal, assim como caulcula média e desvios padrão entre as unidades de analise. A amplitudo chega a atingir valor superior a 23 milhões em 2010, o que nos dá indício de se trata de uma distribuição extremamente assimétrica, hipótese que pode ser confirmada quando comparamos o valor do desvio padrão em relação à média e podemos verificar que o desvio padrão ser até 5 vezes maior do que a média.\
+\
+\
+Vamos visualizar essa distribuição através de um gráfico de densidade no ano de 198.  
+\
+```{r Porte_cidades_1}
+options(scipen = 999)
+Lg_Cities%>%filter(Year==1982)%>%mutate(Year=factor(Year))%>%
+ggplot()+
+  geom_density(aes(x=Population), color="blue")+
+  labs(title = "Aglomerações urbana em 1982",
+       x=" ",
+       y=" ",
+       subtitle =" ",
+       caption = "A. Lima. ggplot2 - Fonte: base ChinaCities",
+       size = "") +
+  theme(axis.text.x = element_text(size=4),
+          axis.text.y = element_text(size=4),
+          axis.title.x = element_text(size=0),
+          axis.title.y = element_text(size=0),
+        plot.title = element_text(size=12))+
+    theme(legend.position = "bottom")+
+  theme_bw()
+```
+\
+É com dificuldade que conseguimos diferenciar a distribuição dos eixos X e Y. Isso ocorre devido a tendência das aglomerações humanas seguirem uma distribuição Zipfiana, na qual a maior parte da população se concentra em uma quantidade reduzidade de aglomerações e o restantes em um número muito maior de pequenas aglomerações.  
+\
+\
+Vamos então aplicar escala logarítimica para poder ver mais detalhes. Oportunamente, vamos retirar o filtro de ano e projetar todos os anos do bando de dados. 
+\
+```{r Porte_cidades_2}
+options(scipen = 999)
+Lg_Cities<-Lg_Cities%>%mutate(Year=factor(Year))
+ggplot(Lg_Cities)+
+  geom_density(aes(x=Population, color=Year))+
+  scale_x_log10()+ 
+  labs(title = "Escala de aglomeracões urbanas",
+       x=" ",
+       y=" ",
+       subtitle =" ",
+       caption = "A. Lima. ggplot2 - Fonte: base ChinaCities",
+       size = "") +
+  theme(axis.text.x = element_text(size=4),
+          axis.text.y = element_text(size=4),
+          axis.title.x = element_text(size=0),
+          axis.title.y = element_text(size=0),
+        plot.title = element_text(size=12))+
+    theme(legend.position = "bottom")+
+  theme_bw()
+```
+\
+Para analisar o gráfico precisamos ter em mente que quanto maior o número no eixo X menor o porte da cidade em termos de concentração populacional.
+\
+\
+É interessante verificar que esta assimetria já existia em 1982 e foi aumentando até os anos 2000.   Entretanto, entre 2000 a 2010, essa curva reduziu o pico. É possível que nesse período alguns fatores de ordem econômica e política tenham favorecido o crescimento populacional de cidades intermediárias.
+\
+\
+Podemos a partir da comparação de 4 mapas cada uma para um período verificar a distrituição de cidades a partir de uma certo número de habitantes para verificar ondem tem ocorrido o crescimento tem ocorrido o crecimeno urbano.
+\
+\
+Abaixo temos a comparação para cidade com população igual ou superior a 100 mil habitantes.
+\
+```{r}
+ChinaAdm1%>%ggplot()+
+  geom_sf(fill="#b3e2cd", collor="white",size=0.1)+
+  geom_point(data=Lg_Cities%>%filter(Population>=100000), 
+             aes(x=Long, y=Lat),  size=.01, colour = "#d95f02")+
+    labs(title = "China - Aglomerações urbanas com população superior a 100 mil habitantes",
+       x=" ",
+       y=" ",
+       subtitle =" ",
+       caption = "A. Lima. ggplot2 - Fonte: base ChinaCities",
+       size = "") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        rect = element_blank())+
+  theme_bw(7)+
+  facet_wrap(~Year)
+
+```
+\
+Conseguimos visualizar espacialmente a tendencia de concetração que o gráfico de porte demonstrava. A redução de curva nos anos 2000 se expressa pelo aumento no números de aglomerações com população acima de 100 mil habitantes em na região central. Os adensamentos em torno de Chongqing expressão esse bem esse fenômeno. 
+\
+\
+Sabemos que a partir de 2000 o Conselho de Estado inciou uma politica de desenvolimento do Oeste. É possivel que o crescimento das cidades localizadas na região central esteja  associada com esta política. 
+\
+Conseguimos visualizar que em termos absolutos a região costeira cresce mais que a região, que por sua vez cresce mais que a região oeste. E em termos relativos?
+\
+\
+```{r}
+options(digits=3)
+Tabela_2<-Lg_Cities%>%group_by(Region,Year)%>%
+  tally(Population)%>%
+  mutate(Year_2=lead(Year))%>%
+  arrange(Year) %>% 
+  mutate(n_posterior=lead(n))%>%mutate(Var_Pct=100*(n_posterior/n)-100)%>%unite("Year_Year2",c(Year, Year_2))
+
+Tabela_2_Var1<-Tabela_2%>%ungroup()%>%slice(1:9)
+
+kable(Tabela_2_Var1, caption = "**Tabela 2. Variação percentual da população urbana por Macro-Região**", 
+        col.names = c("Macro-Região", "Ano-Ano2", "População", "População 2", "Variação Percentual"), 
+        digits=1, format.args=list(big.mark=".", decimal.mark=","))%>%
+  kable_styling()%>%
+  pack_rows("Período 2", 4,6)%>%
+  pack_rows("Período 3", 7,9)%>%
+  footnote(general = "A. Lima - Fonte: ChinaCities",  general_title = " ")
+```
+\
+Em termos relativos, conforme os dados verificamos que a Macro-região que mais cresce é a ocidental. E o período em que a população urbana mais cresceu em valores absolutos e relativos foi entre os anos de 1990 e 2000.\
+\
+\
+Vimos na região costeira possuem superiodade sobresaliente em relação à central e a ocidental. Vamos verificar se é possível estabelecer correlação entra esse indices e o IDH no nível provinicial.
+\
+\
+```{r}
+IDH<-China_tb$IDH
+ChinaAdm1%>%left_join(IDH, by=c("ID_1", "Province"))%>%ggplot()+
+  geom_sf(aes(fill = `1999`), size =0.2, color="white")+
+  scale_fill_gradient(low="#ffffcc", high="#fc4e2a")+
+  geom_text(data = IDH, aes(x=Long, y=Lat,label = Province),size=2.5, color="#252525")+
+    labs(x=" ", y=" ",
+      title = "IDH por pronvincias chinesas(2019)",
+       subtitle =" ",
+       caption = "A. Lima. ggplot2 - Fonte: https://globaldatalab.org/shdi/",
+       size = "") +
+  theme(axis.text.x = element_text(size=3),
+          axis.text.y = element_text(size=2),
+          axis.title.x = element_text(size=0),
+          axis.title.y = element_text(size=0),
+        plot.title = element_text(face = "bold", size=12))+
+  theme_bw(8)
+```
+
+\
+Podemos observar que as regiões que possuem os melhores IDH são também as mais urbanizadas o Xizang(Tibete) aparenta ser um *outlier*. 
+\
+\
+No começo deste texto, mencionamos que nos pautriamos principalmente em 2 bancos. O primeiro nos ajuda a compreender sobre o processo de urbanização desde o começo da década de 1980 até 2010. Além da distribuição espacial, pudemos a partir destes dados verificar como as dimensões absoluta  e relativas desse  processo em 4 momentos 1982, 1990, 200 e 2010, por fim buscamos verificar se há correlação entre os indicadores de urbanização e o IDH.
+\
+```{r}
+ZEE <-China_tb$ZeeProvLatLong
+```
+\
+Agora, tentaremos analisar um banco que reuniu a implantação de Zonas Econômicas Especias na China no final da década de 1970 até 2006. Trata-se de uma banco `r nrow(ZEE)` observações únicas. Cada observação bem como seu respectivo código representam uma ZEE instalada em determinado ano. Uma vez que não tinhamos as coordenadas geográficas de cada municipalidade onde foi instalada uma ZEE, ao mesmo tempo em que realizamos um anexamos o banco de ZEEs ao lado esquerdo do banco de cidades adaptaptado que mencionamos no começo do relatório.
+\
+```{r, results='hide', message=TRUE}
+ZEE%>%anti_join(cities, by=c("Municipality", "Province", "Region"))%>%distinct(Municipality, Province)
+```
+\
+Com um anti_join verificamos que das `r nrow(ZEE)` observações, existem correspondencia de 1674 linhas, o que representa o número de cidade municipalidades que exitem em ambos os bancos. 
+\
+\
+Se juntarmos o banco com a base shp por *Province* e ID_1 não perdemos nenhuma observação.
+\
+```{r, message=TRUE}
+ChinaAdm_pt<-ChinaAdm1%>%left_join(Provincias, by=c("ID_1", "Province"))
+```
+
+
+```{r}
+ZEE_sf<-ZEE%>%st_as_sf(coords=c("Long","Lat"), 
+                                  crs=4326)
+
+ChinaAdm_pt%>%ggplot()+
+  geom_sf(aes(fill=Region),size=0.2)+
+  scale_fill_brewer(palette = "Pastel2")+
+  geom_sf(data=ZEE_sf%>%group_by(Province)%>%tally(), pch = 21,
+          aes(size=n),
+          fill=alpha("red", 0.6))+
+    labs(title = "Distribuição de Zonas Econômicas por Província",
+       subtitle =" ",
+       x=" ",
+       y=" ",
+       caption = "A. Lima. ggplot2 - Fonte: Wang, 2013",
+       size = "") +
+  theme(axis.text.x = element_text(size=6),
+          axis.text.y = element_text(size=6),
+          axis.title.x = element_text(size=0),
+          axis.title.y = element_text(size=0),
+        plot.title = element_text(face = "bold", size=12))
+```
+\
+\
+Além de representar a distribuição proporcional de Zonas econômicas a nível administrativo 1 (Provincia, Região Autônoma ou Municipalidade), o mapa também espressa a divsião macro-regional concebida pelo geógrafo [Meng Guangwen](https://www.researchgate.net/publication/33427852_The_Theory_and_Practice_of_Free_Economic_Zones_A_Case_Study_of_Tianjin_People%27s_Republic_of_China), entre as regiões costeiras, centrais e ocidentais. 
+
+
+```{r}
+ZeeCities<-China_tb$ZeeCities%>%select(1:11)
+```
+\
+\
+O banco de ZEE registra as Zonas Econômicas implantadas entre 1980 e 2006. Para deixá-lo mais comparável ao banco de cidades vamos criar uma nova variável e denominá-la Fase para designar um espaço temporal 
+\
+\
+```{r}
+ZeeYear <- ZeeCities%>%group_by(Year)%>%
+  tally()%>%
+  mutate(Acumulado=lead(cumsum(n)))%>%
+  fill(Acumulado)%>%mutate(Fase=case_when(Year<= 1985~ "1980-1985",
+                                  Year>1985 & Year <=1990~ "1986-1990",
+                                  Year>1990 & Year <=1995~ "1991-1995",
+                                  Year>1995 & Year <=1999~ "1996-1999",
+                                  Year>1999~ "2000-2006"))
+```
+\
+\
+Vamos visualizar o ritmo de implantação das Zonas economicas e as acumuladas anualmente ao longo do período. 
+\
+\
+```{r}
+ZeeCities%>%group_by(Year)%>%tally()%>%ggplot()+
+  geom_col(aes(x=Year, y=n), color="white", fill="#5F9EA0")+
+  geom_text(aes(x = Year, y = n, label = n), size = 3)+
+  labs(title = "Implantação de Zonas de Desenvolvimento (1980-2006)",
+       subtitle =" ",
+       x="Período",
+       y="Quantidade",
+       caption = "A. Lima. ggplot2 - Fonte: Wang, 2013",
+       size = "") +
+  theme(axis.text.x = element_text(size=6),
+          axis.text.y = element_text(size=6),
+          axis.title.x = element_text(size=0),
+          axis.title.y = element_text(size=0),
+        plot.title = element_text(face = "bold", size=12))
+```
+\
+\
+```{r}
+
+Tabela_3<-ZeeYear%>%group_by(Fase)%>%summarise(n=sum(n))
+
+kable(Tabela_3, caption = "**Tabela . Zonas estabelecida por Fase**")%>%
+  kable_styling()%>%
+  footnote(general = "A. Lima - Fonte: Wang, 2013",  general_title = " ")
+```
+\
+\
+
+Podemos visualizar que o ritmo de crescimento de ZEE crescia progressivamente até meados da década de 1990 quando começa oscilar. A partir dos anos 2000 percebemos o aumento na implantação de Zonas e em 2006 temos um número récorde de 693 Zonas estabelecida. 
+\
+\
+É necessário não cometer o equivoco de interpretar o periodo de redução no ritmo de crescimento com a redução de Zonas. O gráfico abaixo demonstra o acumulado na mesma série histórica.
+\
+\
+```{r}
+ZeeYear %>%mutate(Acumulado = cumsum(n))%>%ggplot()+
+  geom_col(aes(x=Year, y=Acumulado), color="white", fill="#5F9EA0")+
+  geom_text(aes(x = Year, y = Acumulado, label = Acumulado), size = 3)+
+  labs(title = "Acumulado de Zonas de Desenvolvimento (1980-2006)",
+       subtitle =" ",
+       x="Período",
+       y="Acumulado",
+       caption = "A. Lima. ggplot2 - Fonte: Wang, 2013",
+       size = "") +
+  theme(axis.text.x = element_text(size=6),
+          axis.text.y = element_text(size=6),
+          axis.title.x = element_text(size=0),
+          axis.title.y = element_text(size=0),
+        plot.title = element_text(face = "bold", size=12))
+
+```
+\
+\
+Agora vamos vizualizar espacialmente em quatro fases. 
+\
+\
+
+```{r}
+ZeeCities_F2<-ZeeCities%>%mutate(Fase=case_when(Year<=1989~ "1980-1989",
+                                  Year>=1990 & Year <=1994~ "1990-1994",
+                                  Year>=1995 & Year <=1999~ "1995-1999",
+                                  Year>=2000 ~ "1996-1999"))
+```
+
+```{r}
+ChinaAdm1%>%ggplot()+
+  geom_sf(fill="#b3e2cd", collor="white",size=0.1)+
+  geom_point(data=ZeeCities_F2%>%group_by(Municipality, Lat, Long, Year, Fase)%>%tally(), 
+             aes(x=Long, y=Lat, color=Fase, size=n), shape=21, alpha=0.9)+
+  scale_color_brewer(palette="Set1")+
+    labs(title = "China - Proporção de ZEEs estabelecidas na municipalidade por fase",
+       x=" ",
+       y=" ",
+       subtitle =" ",
+       caption = "A. Lima. ggplot2 - Fonte: base Wang, 2013",
+       size = "") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        rect = element_blank())+
+  facet_wrap(~Fase)+
+  theme_bw(7)
+```
+
+
+Verificamos na pimeira fase 1980-1989 uma maior que as zonas de desenvolvimento centra-se pricipalmente na região costeira, na década de 1990, observamos expansão para a região central e notamos algunos ponhtos na região oeste. Já a partir dos anos 2000 nota-se que as inciativas na região oeste comecam a se adensar, a despeito de as regiões central e costeira manterem maior densidade. 
+\
+\
+Verificamos anteriormente que as região oeste foi a que teve os maiores percentuais de crescimento urbano desde os anos 2000. Seria possivel que estes indices estejam associados?
+\
+  
+### Conclusão  
+
+\
+No momento poderiamos realizar teste de correlação para verificar por exemplo se há coincidencia com a implantação de uma Zona Econômica com o comportamento da aglomeração urbana. 
+\
+\
+Devido ao fato dos bancos possuirem unidades de observação espaço-temporais diversas, seria necessarios realizar uma paramentrização para testar hipotese. Neste trabalho nos temos a fazer uma analise descritiva, pois a elaboração desse banco é um dos objetivos desta pesquisa e vai demandar mais tempo. 
+\
+\
+A pesquisa de Swerts e Xie encontrou correlação positiva entre entre a instalação de uma ZEE e o crescimento de uma aglomeração urbana. 
+\
+\
+Um outra hipótese testada foi havia mudança siginificativa nas medias longitudinais das cidades que sediam uma ZEE com um período específico. O potencial dessa analise é verificar se uma plano político-estratégico vem sendo implantado, ou se não ocorreu mudança siginficativa no comportamento econônomico e no crescimento de aglomerações. 
+\
+\
+Consideramos o trabalhos dos autores como basilar para o desenvolvimento da nossa própria pesquisa. Uma vez que nos fornecem material inicial para visualizar algumas padrões gerais e a partir deles podemos nos esforçar em atualizar os seus bancos de dados e revisar algumas de suas inferências. Adicionalmente nos propomos em uma etapa posteriar analisar um caso específico a fim de testar os achados naquele contexto. 
+
+
+

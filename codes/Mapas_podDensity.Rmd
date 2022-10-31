@@ -1,0 +1,173 @@
+---
+title: "Mapas_popDensity"
+author: "aniellima"
+date: "2022-11-03"
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+  pdf_document: default
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, error = FALSE)
+options(scipen = 999, digits = 2)
+```
+
+
+```{r Library}
+library(devtools)
+library("readxl")
+library("viridis")
+library(broom)
+library("tidyverse")
+library("tidylog")
+library("sf")
+library("dplyr")
+library("mice")
+library("readxl")
+library("viridis")
+library(ggtech)
+library(gridExtra)
+library(ggplot2)
+library("ggthemes")
+library(scales)
+library(giscoR)
+library("knitr")
+library("kableExtra")
+```
+
+
+```{r}
+districts<-read_delim("../processedData/dataSet/districts/districts.csv", col_types = "cccccccdddddicccc")%>%filter(pr_adcode!=710000)# filtra Taiwan fora.
+```
+
+
+
+
+```{r}
+# Estabelece variavel faixa para densidade populacional  
+districts<-districts %>% mutate(Faixa=(case_when(POP_Km2<1~"de 0-1",
+                                                         POP_Km2>=0&POP_Km2<=25~"1-25",
+                                                         POP_Km2>25&POP_Km2<=100~"25-100",
+                                                         POP_Km2>100&POP_Km2<=200~"100-200",
+                                                         POP_Km2>200&POP_Km2<=400~"200-400",
+                                                         POP_Km2>400&POP_Km2<=600~"400-600",
+                                                         POP_Km2>600&POP_Km2<=800~"600-800",
+                                                         POP_Km2>800&POP_Km2<=1000~"800-1000",
+                                                         POP_Km2>1000~"acima de 1000")))
+
+# Converte em fator ordenando
+districts<-districts %>% mutate(Faixa=factor(Faixa,
+                                levels = c("de 0-1", "1-25", "25-100", "100-200", "200-400", "400-600", "600-800", "800-1000", "acima de 1000"), ordered = T))
+```
+
+
+
+
+
+```{r, results=FALSE}
+chinaShp<-st_read("../processedData/shp/china/")
+districtsShp<-st_read("../processedData/shp/districts/districts.shp")%>%filter(pr_adcode!=710000)# filtra Taiwan fora. 
+citiesShp<-st_read("../processedData/shp/cities/") %>% filter(pr_adcode!=710000)# filtra Taiwan fora. 
+provincesShp<-st_read("../processedData/shp/provinces/provinces.shp") %>% filter(pr_adcode!=710000)# filtra Taiwan fora. 
+tianShanB<-st_read("../processedData/shp/tianshan/tianShanOutter.shp")
+tianShanShp<-st_read("../processedData/shp/tianshan/tianshan.shp")
+```
+
+
+```{r}
+#separa 'geometry' e 'dt_adcode' para juntar com a base de dados
+geometry<-districtsShp%>%dplyr::select(dt_adcode, geometry)
+
+
+# junta com geometry
+districtsShp<-left_join(geometry,districts, by=c("dt_adcode"))
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+districtsShp%>%filter(Year==2000|Year==2020) %>% ggplot()+
+  geom_sf(aes(fill=Faixa), color=NA)+
+  geom_sf(data = provincesShp, aes(), fill=NA,color="black", size=.1)+
+  scale_fill_brewer(palette = "YlOrRd")+
+  theme_bw()+
+  theme(axis.text.x = element_text(size=6))+
+  theme(axis.text.y = element_text(size=6))+
+  theme(axis.title.x = element_blank())+
+  theme(axis.title.y = element_blank())+
+  facet_wrap(~Year)+
+  ggtitle("Densidade por distrito(2000-2020)")
+```
+
+
+* Apesar de terem havido mudancas no adensamento entre 2000 e 2020, devido a escala elas não ficam tão evidentes. Vamos verificar o que ocorre quando isolamos o Xinjiang:
+
+```{r}
+districtsShp %>% filter (Year==2000|Year==2020) %>% filter (pr_adcode==650000)%>%
+  ggplot()+
+  geom_sf(aes(fill=Faixa), color=NA)+
+  geom_sf(data = provincesShp %>% filter(pr_adcode==650000), aes(), fill=NA,color="black", size=.1)+
+  scale_fill_brewer(palette = "YlOrRd")+
+  theme_bw()+
+  theme(axis.text.x = element_text(size=6))+
+  theme(axis.text.y = element_text(size=6))+
+  theme(axis.title.x = element_blank())+
+  theme(axis.title.y = element_blank())+
+  facet_wrap(~Year)+
+  ggtitle("Densidade por distrito(2000-2020)")
+```
+
+* Agora já da pre ver evolucao, masi ainda não esta tao claro. Vamos reduzir aumentar a escalar para a região de interesse. Em torno do planalto do Tian Shan. 
+
+
+```{r}
+districtsShp %>% filter (Year==2020) %>% filter (pr_adcode==650000)%>%
+  ggplot()+
+  geom_sf(aes(fill=Faixa), color=NA)+
+  geom_sf(data = provincesShp %>% filter(pr_adcode==650000), aes(), fill=NA,color="black", size=.1)+
+  geom_sf(data=tianShanB, aes(),  fill=NA,color="black", size=.1)+
+  scale_fill_brewer(palette = "YlOrRd")+
+  theme_bw()+
+  theme(axis.text.x = element_text(size=6))+
+  theme(axis.text.y = element_text(size=6))+
+  theme(axis.title.x = element_blank())+
+  theme(axis.title.y = element_blank())+
+  facet_wrap(~Year)+
+  ggtitle("Densidade por distrito(2000)")
+```
+
+
+
+```{r}
+#separa 'geometry' e 'dt_adcode' para juntar com a base de dados
+Tgeometry<-tianShanShp%>%dplyr::select(dt_adcode, geometry)
+
+
+# junta com geometry
+tianShanShp<-left_join(Tgeometry,districts, by=c("dt_adcode"))
+```
+
+
+
+```{r}
+tianShanShp %>% filter (Year==2000|Year==2020)%>%
+  ggplot()+
+  geom_sf(aes(fill=Faixa), color=NA)+
+  geom_sf(data = tianShanB, aes(), fill=NA,color="black", size=.2)+
+  #geom_sf(data=tianShan, aes(),  fill=NA,color="black", size=.1)+
+  scale_fill_brewer(palette = "YlOrRd")+
+  theme_bw()+
+  theme(axis.text.x = element_text(size=6))+
+  theme(axis.text.y = element_text(size=6))+
+  theme(axis.title.x = element_blank())+
+  theme(axis.title.y = element_blank())+
+  facet_wrap(~Year)+
+  ggtitle("Densidade por distrito(2000-2020)")
+```
+
