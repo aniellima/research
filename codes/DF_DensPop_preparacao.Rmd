@@ -1,14 +1,15 @@
 ---
-title: "DF_DensidadePop_preparacao"
+title: "DF_DensPop_preparacao"
 author: "aniellima"
 date: "2022-10-26"
 output:
   html_document: 
-    df_paged: TRUE
+    df_print: paged
 ---
 
 ``````{r, echo=TRUE}
 knitr::opts_chunk$set(echo=TRUE, error=FALSE, warning=FALSE, message=FALSE, eval = TRUE)
+options(scipen = 100, digits = 3)
 options(prompt = "R> ")
 ```
 

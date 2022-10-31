@@ -45,7 +45,6 @@ ct_pinyin<-py(citiesShp$ct_name, sep = " ", dic=pydic(method = c("toneless"), mu
 # Provincias
 pr_pinyin<-py(provincesShp$pr_name, sep = " ", dic=pydic(method = c("toneless"), multi = FALSE,
         only_first_letter = FALSE, dic = c("pinyin2")))
-
 ```
 
 
@@ -79,7 +78,7 @@ districtsShp<-districtsShp%>%dplyr::select(dt_adcode,dt_pinyin,dt_name,ct_adcode
 areaChina <- chinaShp%>%vect()
 
 # calcula a area do vetor em m2. Divide-se por 1.000.000 para chegar em km2
-areaChina$AREA_KM_2 <- expanse(areaChina) / 1000000
+areaChina$AREA_Km2 <- expanse(areaChina) / 1000000
 
 # retorna ao sistema de projeão anterior
 chinaShp<-areaChina%>%st_as_sf(coords=c("x","y"), 
@@ -88,12 +87,13 @@ chinaShp<-areaChina%>%st_as_sf(coords=c("x","y"),
 
 
   +   Nivel 2
+  
 ```{r, eval=FALSE}
 # transforma um objeto shp em vetor.
 provinciasArea <- provincesShp%>%vect()
 
 # calcula a area do vetor em m2. Divide-se por 1.000.000 para chegar em km2
-provinciasArea$AREA_KM_2 <- expanse(provinciasArea) / 1000000
+provinciasArea$AREA_Km2 <- expanse(provinciasArea) / 1000000
 
 # retorna ao sistema de projeão anterior
 provincesShp<-provinciasArea%>%st_as_sf(coords=c("x","y"), 
@@ -107,7 +107,7 @@ provincesShp<-provinciasArea%>%st_as_sf(coords=c("x","y"),
 cidadesArea <- citiesShp%>%vect()
 
 # calcula a area do vetor em m2. Divide-se por 1.000.000 para chegar em km2
-cidadesArea$AREA_KM_2 <- expanse(cidadesArea) / 1000000
+cidadesArea$AREA_Km2 <- expanse(cidadesArea) / 1000000
 
 # retorna ao sistema de projeão anterior
 citiesShp<-cidadesArea%>%st_as_sf(coords=c("x","y"), 
@@ -115,12 +115,13 @@ citiesShp<-cidadesArea%>%st_as_sf(coords=c("x","y"),
 ```
 
   +   Nivel 4
+  
 ```{r, eval=FALSE}
 # transforma um objeto shp em vetor.
 distritosArea <- districtsShp%>%vect()
 
 # calcula a area do vetor em m2. Divide-se por 1.000.000 para chegar em km2
-distritosArea$AREA_KM_2 <- expanse(distritosArea) / 1000000
+distritosArea$AREA_Km2 <- expanse(distritosArea) / 1000000
 
 # retorna ao sistema de projeão anterior
 districtsShp<-distritosArea%>%st_as_sf(coords=c("x","y"), 
@@ -174,9 +175,28 @@ centroid <- gCentroid(as(chinaShp, "Spatial"), byid = TRUE)
 chinaShp<-cbind(chinaShp, centroid)
 ```
 
+  + Agora vamos criar um shapfile que tenha apenas as bordas externas da região de interesse:
+  
+```{r, eval=FALSE}
+tianShanOutter<-st_union(tianShanShp)
+
+#Create XY coordinations for the shp and join it with the the shp file
+centroid <- gCentroid(as(tianShanOutter, "Spatial"), byid = TRUE)
+
+# transform in tibble to join after
+centroid<-centroid%>%as_tibble()
+tianShanOutter<-tianShanOutter%>%as_tibble()
+tianShanOutter<-cbind(centroid, tianShanOutter)
+
+# reconvert to sf
+tianShanOutter<-tianShanOutter%>%st_as_sf(crs=4326)
+```
+
+
 * Salva os arquivos em documentos processados para cruzar com os dados dos arquivos em raster. 
 
-  * O pacote 'sf' não possui a funcao de overwrite. No lugar ele sobrepoe os novos shapes aos já existentes, que pode atrapalhar quando tentarmos porjetar e unir com outros bancos posteriormente. Para evitar isso, iremos executar a funcao abaixo que apaga todos os arquivos na pasta '/processedData/shp' e nas respectivas subpasta.  
+  * O pacote 'sf' não possui a funcao de overwrite. No lugar ele sobrepoe os novos shapes aos já existentes, que pode atrapalhar quando tentarmos porjetar e unir com outros bancos posteriormente. Para evitar isso, iremos executar a funcao abaixo que apaga todos os arquivos na pasta '/processedData/shp' e nas respectivas subpastas.  
+  
 ```{r, eval=FALSE}
 # Salva todos os arquivos em uma pasta 
 atalho <- '../processedData/shp'
@@ -185,14 +205,23 @@ if (file.exists(atalho)) {
   a <- list.files(atalho, include.dirs = F, full.names = T, recursive = T)
     file.remove(a)
 }
-
 ```
 
 
 ```{r, eval=FALSE}
-chinaShp%>%st_write("../processedData/shp/china/china.shp")
-provincesShp%>%st_write("../processedData/shp/provinces/provinces.shp")
-citiesShp%>%st_write("../processedData/shp/cities/cities.shp")
-districtsShp%>%st_write("../processedData/shp/districts/districts.shp")
+chinaShp%>%st_write("../processedData/shp/china/china.shp", ayer_options = "ENCODING=UTF-8")
+provincesShp%>%st_write("../processedData/shp/provinces/provinces.shp", ayer_options = "ENCODING=UTF-8")
+citiesShp%>%st_write("../processedData/shp/cities/cities.shp", ayer_options = "ENCODING=UTF-8")
+districtsShp%>%st_write("../processedData/shp/districts/districts.shp", ayer_options = "ENCODING=UTF-8")
 tianShanShp%>%st_write("../processedData/shp/tianshan/tianshan.shp")
+tianShanOutter%>%st_write("../processedData/shp/tianshan/tianShanOutter.shp", ayer_options = "ENCODING=UTF-8")
 ```
+
+* Ao reescrever o arquivo, é exibida uma mensagem apontando que os caractheres não puderam ser convertidos de UTF-8 para ISO-8859-1. Quando carregamos ao carregar um dos shapphiles, verificamos que os caracteres chineses foram perdidos no processo. conforme exemplo abaixo 
+
+```{r}
+x<-sf::st_read("../processedData/shp/provinces/provinces.shp")
+x
+```
+
+* Felizmente o nosso identificador unico 'dt_adcode' é numerico e distinto para cada observacao. O que significa que podemos ignorar essa mensagem por hora já que podemos recuperar os carecteres chinese juntando nossa base com o shapfile original, caso seja necessário.

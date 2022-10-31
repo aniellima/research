@@ -1,0 +1,118 @@
+---
+title: "GPWv4_preparacao"
+author: "aniellima"
+date: "2022-10-12"
+output:
+  html_document: 
+    df_paged: TRUE
+    number_sections: TRUE
+---
+
+```{r, eval=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, error = FALSE)
+options(scipen = 9999)
+options(prompt = "R> ")
+```
+
+
+
+```{r, eval=FALSE}
+library(pacman)#carrega multiplas bibliotecas
+p_load(formatR, ggplot2, tidyverse, dplyr,  stars, mapview, mapedit,cubeview, sf, units, data.table, dplyr, raster, rasterVis, viridis, ggpubr, rgeos,  exactextractr, knitr, geodata)
+```
+
+* Este script realiza o download e dos bancos de dados raster com o pacote 'geodata' salva na pasta rawData e faz o subsetting dos dados conoforme o nivel administrativo.
+
+
+* Os arquvivos são os GWP gerados pelo SEDAC e disponivel em mesma resolucao pelo pacote 'geodata'. A fim de garantir a reproductibilidades disponibilizamos o código utilizado para fazer o download de cada raster. Mas para evitar que seja executado sem razao deixamos como comentario, pois os arquvivos ja se encontram na pasta 'Research/rawData'.  
+
+```{r, eval=FALSE}
+#load files from geodata
+#gpw2000<-population(2000, 0.5, path =  "/home/aniellima/Research/rawData")
+#gpw2005<-population(2005, 0.5, path =  "/home/aniellima/Research/rawData")
+#gpw2010<-population(2010, 0.5, path =  "/home/aniellima/Research/rawData")
+#gpw2015<-population(2015, 0.5, path =  "/home/aniellima/Research/rawData")
+#gpw2020<-population(2020, 0.5, path =  "/home/aniellima/Research/rawData")
+
+# Read raster Files
+gpw2000<-raster("../rawData/pop/gpw_v4_population_density_rev11_2000_30s.tif")
+gpw2005<-raster("../rawData/pop/gpw_v4_population_density_rev11_2005_30s.tif")
+gpw2010<-raster("../rawData/pop/gpw_v4_population_density_rev11_2010_30s.tif")
+gpw2015<-raster("../rawData/pop/gpw_v4_population_density_rev11_2015_30s.tif")
+gpw2020<-raster("../rawData/pop/gpw_v4_population_density_rev11_2020_30s.tif")  
+```
+
+* Leitura dos arquivos em '*.shp'
+
+
+```{r, eval=FALSE}
+#Read shp files
+
+chinaShp<-sf::st_read("../processedData/shp/china/china.shp")
+tianShanOutShp<-sf::st_read("../processedData/shp/tianshan/tianShanOutter.shp")
+```
+
+
+* O banco de dados do Sedac é para o globlo todo. Vamos ultilizar as funcoes 'crop' e 'mask' do pacote raster para selecionar apenas as áreas de interesse. Como nao estamos realizado alteracoes nos dados, mas apeans filtrando os resultado permanecerao na pasta rawData, para evitar sobrecarga na migracao de pastas para o Github.
+
+
+```{r, eval=FALSE}
+##China 2000
+chinaSub<-crop(gpw2000, chinaShp)
+chinaPopData<- mask(chinaSub,chinaShp)
+writeRaster(chinaPopData, filename=file.path("../rawData/pop/China_gpw_v4_population_density_rev11_2000_30s.tif"), format="GTiff", overwrite=TRUE)
+
+##2005
+chinaSub<-crop(gpw2005, chinaShp)
+chinaPopData<- mask(chinaSub,chinaShp)
+writeRaster(chinaPopData, filename=file.path("../rawData/pop/China_gpw_v4_population_density_rev11_2005_30s.tif"), format="GTiff", overwrite=TRUE)
+
+##2010
+chinaSub<-crop(gpw2010, chinaShp)
+chinaPopData<- mask(chinaSub,chinaShp)
+writeRaster(chinaPopData, filename=file.path("../rawData/pop/China_gpw_v4_population_density_rev11_2010_30s.tif"), format="GTiff", overwrite=TRUE)
+
+##2015
+chinaSub<-crop(gpw2015, chinaShp)
+chinaPopData<- mask(chinaSub,chinaShp)
+writeRaster(chinaPopData, filename=file.path("../rawData/pop/China_gpw_v4_population_density_rev11_2015_30s.tif"), format="GTiff", overwrite=TRUE)
+
+##2020
+chinaSub<-crop(gpw2020, chinaShp)
+chinaPopData<- mask(chinaSub,chinaShp)
+writeRaster(chinaPopData, filename=file.path("../rawData/pop/China_gpw_v4_population_density_rev11_2020_30s.tif"), format="GTiff", overwrite=TRUE)
+```
+
+
+*   Compartimentando a região de interesse
+
+```{r, eval=FALSE}
+#2000
+tianShanSub<-raster::crop(gpw2000, tianShanOutShp)
+tianShanPopData<-mask(tianShanSub, tianShanOutShp)
+writeRaster(tianShanPopData, filename=file.path("../rawData/pop/tianshan_gpw_v4_population_density_rev11_2000_30s.tif"), format="GTiff", overwrite=TRUE)
+
+#2005
+tianShanSub<-crop(gpw2005, tianShanOutShp)
+tianShanPopData<-mask(tianShanSub, tianShanOutShp)
+writeRaster(tianShanPopData, filename=file.path("../rawData/pop/tianshan_gpw_v4_population_density_rev11_2005_30s.tif"), format="GTiff", overwrite=TRUE)
+
+
+#2010
+tianShanSub<-crop(gpw2010, tianShanOutShp)
+tianShanPopData<-mask(tianShanSub, tianShanOutShp)
+writeRaster(tianShanPopData, filename=file.path("../rawData/pop/tianshan_gpw_v4_population_density_rev11_2010_30s.tif"), format="GTiff", overwrite=TRUE)
+
+#2015
+tianShanSub<-crop(gpw2015, tianShanOutShp)
+tianShanPopData<-mask(tianShanSub, tianShanOutShp)
+writeRaster(tianShanPopData, filename=file.path("../rawData/pop/tianshan_gpw_v4_population_density_rev11_2015_30s.tif"), format="GTiff", overwrite=TRUE)
+
+#2020
+tianShanSub<-crop(gpw2020, tianShanOutShp)
+tianShanPopData<-mask(tianShanSub, tianShanOutShp)
+writeRaster(tianShanPopData, filename=file.path("../rawData/pop/tianshan_gpw_v4_population_density_rev11_2020_30s.tif"), format="GTiff", overwrite=TRUE)
+```
+
+
+

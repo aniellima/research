@@ -4,7 +4,7 @@ author: "aniellima"
 date: "2022-10-26"
 output:
   html_document: 
-    df_paged: TRUE
+    df_paged: print
 ---
 
 ``````{r, echo=TRUE}

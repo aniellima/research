@@ -11,9 +11,9 @@
 
 <meta name="author" content="aniellima" />
 
-<meta name="date" content="2022-10-26" />
+<meta name="date" content="2022-10-12" />
 
-<title>SHP_preparacao</title>
+<title>GPWv4_preparacao</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -363,235 +363,108 @@ pre code {
 
 
 
-<h1 class="title toc-ignore">SHP_preparacao</h1>
+<h1 class="title toc-ignore">GPWv4_preparacao</h1>
 <h4 class="author">aniellima</h4>
-<h4 class="date">2022-10-26</h4>
+<h4 class="date">2022-10-12</h4>
 
 </div>
 
 
-<pre class="r"><code>knitr::opts_chunk$set(echo=FALSE, error=FALSE, warning=FALSE, message=FALSE)</code></pre>
-<pre class="r"><code>library(pacman)#carrega multiplos pacotes simultaneamente
-p_load(tidyverse, dplyr, tidylog, sf, units, raster,terra, rasterVis, rgeos,pinyin, rgeos)</code></pre>
+<pre class="r"><code>knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, error = FALSE)
+options(scipen = 9999)
+options(prompt = &quot;R&gt; &quot;)</code></pre>
+<pre class="r"><code>library(pacman)#carrega multiplas bibliotecas
+p_load(formatR, ggplot2, tidyverse, dplyr,  stars, mapview, mapedit,cubeview, sf, units, data.table, dplyr, raster, rasterVis, viridis, ggpubr, rgeos,  exactextractr, knitr, geodata)</code></pre>
 <ul>
-<li>Arquivos em SHP - Fonte: <a href="https://github.com/GaryBikini/ChinaAdminDivisonSHP">GaryBikini/ChinaAdminDivisonSHP:
-v2.0, 2021, DOI: 10.5281/zenodo.4167299</a></li>
+<li><p>Este script realiza o download e dos bancos de dados raster com o
+pacote ‘geodata’ salva na pasta rawData e faz o subsetting dos dados
+conoforme o nivel administrativo.</p></li>
+<li><p>Os arquvivos são os GWP gerados pelo SEDAC e disponivel em mesma
+resolucao pelo pacote ‘geodata’. A fim de garantir a reproductibilidades
+disponibilizamos o código utilizado para fazer o download de cada
+raster. Mas para evitar que seja executado sem razao deixamos como
+comentario, pois os arquvivos ja se encontram na pasta
+‘Research/rawData’.</p></li>
 </ul>
-<pre class="r"><code>chinaShp&lt;-st_read(&quot;../rawData/shp/ChinaShp/1_Country/country.shp&quot;)%&gt;%st_set_crs(4326)
-provincesShp&lt;-st_read(&quot;../rawData/shp/ChinaShp/2_Province/province.shp&quot;)%&gt;%st_set_crs(4326)
-citiesShp&lt;-st_read(&quot;../rawData/shp/ChinaShp/3_City/city.shp&quot;)%&gt;%st_set_crs(4326)
-districtsShp&lt;-st_read(&quot;../rawData/shp/ChinaShp/4_District/district.shp&quot;)%&gt;%st_set_crs(4326)</code></pre>
+<pre class="r"><code>#load files from geodata
+#gpw2000&lt;-population(2000, 0.5, path =  &quot;/home/aniellima/Research/rawData&quot;)
+#gpw2005&lt;-population(2005, 0.5, path =  &quot;/home/aniellima/Research/rawData&quot;)
+#gpw2010&lt;-population(2010, 0.5, path =  &quot;/home/aniellima/Research/rawData&quot;)
+#gpw2015&lt;-population(2015, 0.5, path =  &quot;/home/aniellima/Research/rawData&quot;)
+#gpw2020&lt;-population(2020, 0.5, path =  &quot;/home/aniellima/Research/rawData&quot;)
+
+# Read raster Files
+gpw2000&lt;-raster(&quot;../rawData/pop/gpw_v4_population_density_rev11_2000_30s.tif&quot;)
+gpw2005&lt;-raster(&quot;../rawData/pop/gpw_v4_population_density_rev11_2005_30s.tif&quot;)
+gpw2010&lt;-raster(&quot;../rawData/pop/gpw_v4_population_density_rev11_2010_30s.tif&quot;)
+gpw2015&lt;-raster(&quot;../rawData/pop/gpw_v4_population_density_rev11_2015_30s.tif&quot;)
+gpw2020&lt;-raster(&quot;../rawData/pop/gpw_v4_population_density_rev11_2020_30s.tif&quot;)  </code></pre>
 <ul>
-<li>Traduz as colunas ’*_names’ em pinyin</li>
+<li>Leitura dos arquivos em ’*.shp’</li>
 </ul>
-<pre class="r"><code># Vetores para traduzir a unidade de analise de cada base 
-# Distritos
-dt_pinyin&lt;-py(districtsShp$dt_name, sep = &quot; &quot;, dic=pydic(method = c(&quot;toneless&quot;), multi = FALSE,
-        only_first_letter = FALSE, dic = c(&quot;pinyin2&quot;)))
+<pre class="r"><code>#Read shp files
 
-# Cidades
-ct_pinyin&lt;-py(citiesShp$ct_name, sep = &quot; &quot;, dic=pydic(method = c(&quot;toneless&quot;), multi = FALSE,
-        only_first_letter = FALSE, dic = c(&quot;pinyin2&quot;)))
-
-# Provincias
-pr_pinyin&lt;-py(provincesShp$pr_name, sep = &quot; &quot;, dic=pydic(method = c(&quot;toneless&quot;), multi = FALSE,
-        only_first_letter = FALSE, dic = c(&quot;pinyin2&quot;)))</code></pre>
+chinaShp&lt;-sf::st_read(&quot;../processedData/shp/china/china.shp&quot;)
+tianShanOutShp&lt;-sf::st_read(&quot;../processedData/shp/tianshan/tianShanOutter.shp&quot;)</code></pre>
 <ul>
-<li>Unifica vetores com a respectiva base e realiza join com base
-superior(distritos, cidades e provincias)</li>
+<li>O banco de dados do Sedac é para o globlo todo. Vamos ultilizar as
+funcoes ‘crop’ e ‘mask’ do pacote raster para selecionar apenas as áreas
+de interesse. Como nao estamos realizado alteracoes nos dados, mas
+apeans filtrando os resultado permanecerao na pasta rawData, para evitar
+sobrecarga na migracao de pastas para o Github.</li>
 </ul>
-<pre class="r"><code>districtsShp&lt;-cbind(dt_pinyin,districtsShp)
-citiesShp&lt;-cbind(ct_pinyin,citiesShp)
-provincesShp&lt;-cbind(pr_pinyin,provincesShp)
+<pre class="r"><code>##China 2000
+chinaSub&lt;-crop(gpw2000, chinaShp)
+chinaPopData&lt;- mask(chinaSub,chinaShp)
+writeRaster(chinaPopData, filename=file.path(&quot;../rawData/pop/China_gpw_v4_population_density_rev11_2000_30s.tif&quot;), format=&quot;GTiff&quot;, overwrite=TRUE)
 
+##2005
+chinaSub&lt;-crop(gpw2005, chinaShp)
+chinaPopData&lt;- mask(chinaSub,chinaShp)
+writeRaster(chinaPopData, filename=file.path(&quot;../rawData/pop/China_gpw_v4_population_density_rev11_2005_30s.tif&quot;), format=&quot;GTiff&quot;, overwrite=TRUE)
 
-# realiza o join com a base superior (cidades com provincias)
-citiesShp&lt;-left_join(citiesShp, provincesShp %&gt;%as.data.frame() %&gt;%dplyr::select(-geometry), by=c(&quot;pr_adcode&quot;,&quot;pr_name&quot;, &quot;cn_adcode&quot;,&quot;cn_name&quot;))
+##2010
+chinaSub&lt;-crop(gpw2010, chinaShp)
+chinaPopData&lt;- mask(chinaSub,chinaShp)
+writeRaster(chinaPopData, filename=file.path(&quot;../rawData/pop/China_gpw_v4_population_density_rev11_2010_30s.tif&quot;), format=&quot;GTiff&quot;, overwrite=TRUE)
 
-# ordena variaveis
-citiesShp&lt;-citiesShp%&gt;%dplyr::select(ct_adcode, ct_pinyin, ct_name, pr_adcode, pr_pinyin, pr_name, cn_adcode, cn_name)
+##2015
+chinaSub&lt;-crop(gpw2015, chinaShp)
+chinaPopData&lt;- mask(chinaSub,chinaShp)
+writeRaster(chinaPopData, filename=file.path(&quot;../rawData/pop/China_gpw_v4_population_density_rev11_2015_30s.tif&quot;), format=&quot;GTiff&quot;, overwrite=TRUE)
 
-# realiza o join com a base superior (distritos com cidades)
-districtsShp&lt;-left_join(districtsShp,citiesShp %&gt;%as.data.frame() %&gt;%dplyr::select(-geometry), by=c(&quot;ct_adcode&quot;,&quot;ct_name&quot;,&quot;pr_adcode&quot;, &quot;pr_name&quot;, &quot;cn_adcode&quot;,&quot;cn_name&quot;))
-# ordena variaveis
-districtsShp&lt;-districtsShp%&gt;%dplyr::select(dt_adcode,dt_pinyin,dt_name,ct_adcode, ct_pinyin, ct_name, pr_adcode, pr_pinyin, pr_name, cn_adcode, cn_name)</code></pre>
+##2020
+chinaSub&lt;-crop(gpw2020, chinaShp)
+chinaPopData&lt;- mask(chinaSub,chinaShp)
+writeRaster(chinaPopData, filename=file.path(&quot;../rawData/pop/China_gpw_v4_population_density_rev11_2020_30s.tif&quot;), format=&quot;GTiff&quot;, overwrite=TRUE)</code></pre>
 <ul>
-<li><p>Calcula a as área em Km2 por nivel administrativo</p>
-<ul>
-<li>Nivel 1</li>
-</ul></li>
+<li>Compartimentando a região de interesse</li>
 </ul>
-<pre class="r"><code># transforma um objeto shp em vetor.
-areaChina &lt;- chinaShp%&gt;%vect()
+<pre class="r"><code>#2000
+tianShanSub&lt;-raster::crop(gpw2000, tianShanOutShp)
+tianShanPopData&lt;-mask(tianShanSub, tianShanOutShp)
+writeRaster(tianShanPopData, filename=file.path(&quot;../rawData/pop/tianshan_gpw_v4_population_density_rev11_2000_30s.tif&quot;), format=&quot;GTiff&quot;, overwrite=TRUE)
 
-# calcula a area do vetor em m2. Divide-se por 1.000.000 para chegar em km2
-areaChina$AREA_Km2 &lt;- expanse(areaChina) / 1000000
+#2005
+tianShanSub&lt;-crop(gpw2005, tianShanOutShp)
+tianShanPopData&lt;-mask(tianShanSub, tianShanOutShp)
+writeRaster(tianShanPopData, filename=file.path(&quot;../rawData/pop/tianshan_gpw_v4_population_density_rev11_2005_30s.tif&quot;), format=&quot;GTiff&quot;, overwrite=TRUE)
 
-# retorna ao sistema de projeão anterior
-chinaShp&lt;-areaChina%&gt;%st_as_sf(coords=c(&quot;x&quot;,&quot;y&quot;), 
-                                  crs=4326)</code></pre>
-<ul>
-<li>Nivel 2</li>
-</ul>
-<pre class="r"><code># transforma um objeto shp em vetor.
-provinciasArea &lt;- provincesShp%&gt;%vect()
 
-# calcula a area do vetor em m2. Divide-se por 1.000.000 para chegar em km2
-provinciasArea$AREA_Km2 &lt;- expanse(provinciasArea) / 1000000
+#2010
+tianShanSub&lt;-crop(gpw2010, tianShanOutShp)
+tianShanPopData&lt;-mask(tianShanSub, tianShanOutShp)
+writeRaster(tianShanPopData, filename=file.path(&quot;../rawData/pop/tianshan_gpw_v4_population_density_rev11_2010_30s.tif&quot;), format=&quot;GTiff&quot;, overwrite=TRUE)
 
-# retorna ao sistema de projeão anterior
-provincesShp&lt;-provinciasArea%&gt;%st_as_sf(coords=c(&quot;x&quot;,&quot;y&quot;), 
-                                  crs=4326)</code></pre>
-<ul>
-<li>Nivel 3</li>
-</ul>
-<pre class="r"><code># transforma um objeto shp em vetor.
-cidadesArea &lt;- citiesShp%&gt;%vect()
+#2015
+tianShanSub&lt;-crop(gpw2015, tianShanOutShp)
+tianShanPopData&lt;-mask(tianShanSub, tianShanOutShp)
+writeRaster(tianShanPopData, filename=file.path(&quot;../rawData/pop/tianshan_gpw_v4_population_density_rev11_2015_30s.tif&quot;), format=&quot;GTiff&quot;, overwrite=TRUE)
 
-# calcula a area do vetor em m2. Divide-se por 1.000.000 para chegar em km2
-cidadesArea$AREA_Km2 &lt;- expanse(cidadesArea) / 1000000
-
-# retorna ao sistema de projeão anterior
-citiesShp&lt;-cidadesArea%&gt;%st_as_sf(coords=c(&quot;x&quot;,&quot;y&quot;), 
-                                  crs=4326)</code></pre>
-<ul>
-<li>Nivel 4</li>
-</ul>
-<pre class="r"><code># transforma um objeto shp em vetor.
-distritosArea &lt;- districtsShp%&gt;%vect()
-
-# calcula a area do vetor em m2. Divide-se por 1.000.000 para chegar em km2
-distritosArea$AREA_Km2 &lt;- expanse(distritosArea) / 1000000
-
-# retorna ao sistema de projeão anterior
-districtsShp&lt;-distritosArea%&gt;%st_as_sf(coords=c(&quot;x&quot;,&quot;y&quot;), 
-                                  crs=4326)</code></pre>
-<ul>
-<li>Secciona a região de interesse: Tianshan</li>
-</ul>
-<pre class="r"><code>### Tian Shan Region
-tianShanShp&lt;-districtsShp%&gt;%filter(pr_adcode==650000)%&gt;%
- filter(ct_adcode==650100|ct_adcode==650200|ct_adcode==650400|ct_adcode==652300|ct_adcode==652700|ct_adcode==654000|ct_adcode==654200|ct_adcode==652300|ct_adcode==652800|ct_adcode==659004|ct_adcode==659001|ct_adcode==659010|ct_adcode==653007|ct_adcode==659007|ct_adcode==659008)%&gt;%
-  filter(dt_adcode!=652801&amp;dt_adcode!=652822&amp;dt_adcode!=652823&amp;dt_adcode!=652824&amp;dt_adcode!=652825)</code></pre>
-<ul>
-<li>Atribui a cada unidade uma coordenada xy
-<ul>
-<li>Tianshan</li>
-</ul></li>
-</ul>
-<pre class="r"><code>#Creating XY coordinations for the shp and join it with the the shp file
-centroid &lt;- gCentroid(as(tianShanShp, &quot;Spatial&quot;), byid = TRUE)
-tianShanShp&lt;-cbind(tianShanShp, centroid)</code></pre>
-<ul>
-<li>Districts</li>
-</ul>
-<pre class="r"><code>centroid &lt;- gCentroid(as(districtsShp, &quot;Spatial&quot;), byid = TRUE)
-districtsShp&lt;-cbind(districtsShp, centroid)</code></pre>
-<ul>
-<li>Cities</li>
-</ul>
-<pre class="r"><code>centroid &lt;- gCentroid(as(citiesShp, &quot;Spatial&quot;), byid = TRUE)
-citiesShp&lt;-cbind(citiesShp, centroid)</code></pre>
-<ul>
-<li>Provinces</li>
-</ul>
-<pre class="r"><code>centroid &lt;- gCentroid(as(provincesShp, &quot;Spatial&quot;), byid = TRUE)
-provincesShp&lt;-cbind(provincesShp, centroid)</code></pre>
-<ul>
-<li>China</li>
-</ul>
-<pre class="r"><code>centroid &lt;- gCentroid(as(chinaShp, &quot;Spatial&quot;), byid = TRUE)
-chinaShp&lt;-cbind(chinaShp, centroid)</code></pre>
-<ul>
-<li>Agora vamos criar um shapfile que tenha apenas as bordas externas da
-região de interesse:</li>
-</ul>
-<pre class="r"><code>tianShanOutter&lt;-st_union(tianShanShp)
-
-#Create XY coordinations for the shp and join it with the the shp file
-centroid &lt;- gCentroid(as(tianShanOutter, &quot;Spatial&quot;), byid = TRUE)
-
-# transform in tibble to join after
-centroid&lt;-centroid%&gt;%as_tibble()
-tianShanOutter&lt;-tianShanOutter%&gt;%as_tibble()
-tianShanOutter&lt;-cbind(centroid, tianShanOutter)
-
-# reconvert to sf
-tianShanOutter&lt;-tianShanOutter%&gt;%st_as_sf(crs=4326)</code></pre>
-<ul>
-<li><p>Salva os arquivos em documentos processados para cruzar com os
-dados dos arquivos em raster.</p>
-<ul>
-<li>O pacote ‘sf’ não possui a funcao de overwrite. No lugar ele
-sobrepoe os novos shapes aos já existentes, que pode atrapalhar quando
-tentarmos porjetar e unir com outros bancos posteriormente. Para evitar
-isso, iremos executar a funcao abaixo que apaga todos os arquivos na
-pasta ‘/processedData/shp’ e nas respectivas subpastas.</li>
-</ul></li>
-</ul>
-<pre class="r"><code># Salva todos os arquivos em uma pasta 
-atalho &lt;- &#39;../processedData/shp&#39;
-if (file.exists(atalho)) {
-    #Delete file if it exists
-  a &lt;- list.files(atalho, include.dirs = F, full.names = T, recursive = T)
-    file.remove(a)
-}</code></pre>
-<pre class="r"><code>chinaShp%&gt;%st_write(&quot;../processedData/shp/china/china.shp&quot;, ayer_options = &quot;ENCODING=UTF-8&quot;)
-provincesShp%&gt;%st_write(&quot;../processedData/shp/provinces/provinces.shp&quot;, ayer_options = &quot;ENCODING=UTF-8&quot;)
-citiesShp%&gt;%st_write(&quot;../processedData/shp/cities/cities.shp&quot;, ayer_options = &quot;ENCODING=UTF-8&quot;)
-districtsShp%&gt;%st_write(&quot;../processedData/shp/districts/districts.shp&quot;, ayer_options = &quot;ENCODING=UTF-8&quot;)
-tianShanShp%&gt;%st_write(&quot;../processedData/shp/tianshan/tianshan.shp&quot;)
-tianShanOutter%&gt;%st_write(&quot;../processedData/shp/tianshan/tianShanOutter.shp&quot;, ayer_options = &quot;ENCODING=UTF-8&quot;)</code></pre>
-<ul>
-<li>Ao reescrever o arquivo, é exibida uma mensagem apontando que os
-caractheres não puderam ser convertidos de UTF-8 para ISO-8859-1. Quando
-carregamos ao carregar um dos shapphiles, verificamos que os caracteres
-chineses foram perdidos no processo. conforme exemplo abaixo</li>
-</ul>
-<pre class="r"><code>x&lt;-sf::st_read(&quot;../processedData/shp/provinces/provinces.shp&quot;)</code></pre>
-<pre><code>## Reading layer `provinces&#39; from data source 
-##   `/home/aniellima/Research/processedData/shp/provinces/provinces.shp&#39; 
-##   using driver `ESRI Shapefile&#39;
-## Simple feature collection with 34 features and 8 fields
-## Geometry type: MULTIPOLYGON
-## Dimension:     XY
-## Bounding box:  xmin: 73.50235 ymin: 3.83703 xmax: 135.0957 ymax: 53.56362
-## Geodetic CRS:  WGS 84</code></pre>
-<pre class="r"><code>x</code></pre>
-<pre><code>## Simple feature collection with 34 features and 8 fields
-## Geometry type: MULTIPOLYGON
-## Dimension:     XY
-## Bounding box:  xmin: 73.50235 ymin: 3.83703 xmax: 135.0957 ymax: 53.56362
-## Geodetic CRS:  WGS 84
-## First 10 features:
-##                pr_pinyin pr_adcode pr_name cn_adcode cn_name   AREA_Km2
-## 1           bei jing shi    110000     ???    100000 ???????   16411.11
-## 2           tian jin shi    120000     ???    100000 ???????   12100.23
-## 3           he bei sheng    130000     ???    100000 ???????  188567.95
-## 4          shan xi sheng    140000     ???    100000 ???????  156893.24
-## 5  nei meng gu zi zhi qu    150000  ??????    100000 ??????? 1144885.29
-## 6        liao ning sheng    210000     ???    100000 ???????  148238.19
-## 7           ji lin sheng    220000     ???    100000 ???????  191008.92
-## 8   hei long jiang sheng    230000    ????    100000 ???????  454261.33
-## 9          shang hai shi    310000     ???    100000 ???????    8003.82
-## 10        jiang su sheng    320000     ???    100000 ???????  103676.32
-##           x        y                       geometry
-## 1  116.4190 40.18702 MULTIPOLYGON (((116.7896 40...
-## 2  117.3477 39.28468 MULTIPOLYGON (((117.8471 39...
-## 3  116.1496 39.54706 MULTIPOLYGON (((118.2767 38...
-## 4  112.2954 37.57226 MULTIPOLYGON (((110.611 34....
-## 5  113.9128 44.08177 MULTIPOLYGON (((119.3276 41...
-## 6  122.6009 41.27777 MULTIPOLYGON (((121.6351 38...
-## 7  126.1947 43.67042 MULTIPOLYGON (((125.3047 45...
-## 8  127.7629 47.87156 MULTIPOLYGON (((133.5856 48...
-## 9  121.4889 31.21081 MULTIPOLYGON (((121.4286 30...
-## 10 119.4942 32.96439 MULTIPOLYGON (((118.8583 31...</code></pre>
-<ul>
-<li>Felizmente o nosso identificador unico ‘dt_adcode’ é numerico e
-distinto para cada observacao. O que significa que podemos ignorar essa
-mensagem por hora já que podemos recuperar os carecteres chinese
-juntando nossa base com o shapfile original, caso seja necessário.</li>
-</ul>
+#2020
+tianShanSub&lt;-crop(gpw2020, tianShanOutShp)
+tianShanPopData&lt;-mask(tianShanSub, tianShanOutShp)
+writeRaster(tianShanPopData, filename=file.path(&quot;../rawData/pop/tianshan_gpw_v4_population_density_rev11_2020_30s.tif&quot;), format=&quot;GTiff&quot;, overwrite=TRUE)</code></pre>
 
 
 
