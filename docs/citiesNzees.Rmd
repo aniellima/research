@@ -82,14 +82,14 @@ Abaixo, o código para carregar  a lista de arquivos:
 
 
 ```{r China_tb, echo=TRUE}
-load("../processedData/dataSet/China_tb.RData")
+load("../rawData/citiesNzees/China_tb.RData")
 ```
 
 \
 A base arquivo shp, foi importado da biblioteca [Dataverse](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/DBJ3BX) da Universidade de Harvard. Também passou por preparação em script anterior, sobretudo para a inclusão de identificadores e alteração de nomes para que tivesse identificadores comuns como os tibbles de China_df. 
 \
 ```{r China.shp, echo=TRUE}
-load("../processedData/dataSet/ChinaAdm1.RData")
+load("../rawData/citiesNzees/ChinaAdm1.RData")
 ```
 \
 \
@@ -166,7 +166,7 @@ Verifica-se uma notável concentração de municipalidades porções Centro-Lest
 **Linha de Hu Huayong**
 
 ```{r, include=TRUE, echo=FALSE, message=FALSE, warning=FALSE, out.width="70%", fig.align="center", fig.cap="Carta desenha a mão por Hu Huayong demonstrando a densidade de população que separa o território chinês em 2 macro-regiões  - Credit: Chinese Journal of Geography(1935) - Domínio Publico\\label{img:Hu Line}"}
-  knitr::include_graphics("../processedData/dataSet/Hu_line.WEBP")
+  knitr::include_graphics("../rawData/citiesNzees/Hu_line.WEBP")
 ```
 \
 \

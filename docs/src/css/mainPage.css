@@ -1,0 +1,76 @@
+body {
+  background-color: ;
+}
+
+a {
+  color: #34495e;
+  text-decoration: none;
+}
+
+div.menu {
+  height: 170px;
+  width: 48%;
+  margin: 5px;
+  padding: px;
+  display: grid;
+  justify-content: center;
+  align-items: center;
+  float: left;
+  font-size: 70;
+}
+
+div#main {
+  background-color: #76d7c4;
+  grid: ;
+}
+
+div#aboutme {
+  background-color: #d7bde2;
+}
+
+div#assignment_1 {
+  background-color: #d7bde2;
+}
+
+div#box_display {
+  background-color: #76d7c4;
+}
+
+div#div_display2 {
+  background-color: #76d7c4;
+}
+
+div#links {
+  background-color: #d7bde2;
+}
+
+div#advanced_selectors {
+  background-color: #f5b041;
+}
+div#assignment_2 {
+  background-color: #FCF3CF;
+}
+
+div#transitions {
+  background-color: #d7bde2;
+}
+
+div#animate {
+  background-color: #76d7c4;
+}
+
+div#positioning{
+  background-color: #ec7063;
+}
+
+div#calendar {
+  background-color: #d7bde2;
+}
+
+div#navigation {
+  background-color: #5dade2;
+}
+
+div#dropDownMenu {
+  background-color: #f7dc6f;
+}
