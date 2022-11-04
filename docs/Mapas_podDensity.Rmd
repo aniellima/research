@@ -161,7 +161,7 @@ tianShanShp<-left_join(Tgeometry,districts, by=c("dt_adcode"))
 
 
 ```{r}
-tianShanShp %>% filter (Year==2000|Year==2020)%>%
+tianShanShp %>% filter (Year==2000|Year==2020)%>% 
   ggplot()+
   geom_sf(aes(fill=Faixa), color=NA)+
   geom_sf(data = tianShanB, aes(), fill=NA,color="black", size=.2)+
@@ -230,10 +230,17 @@ ZeesFronOut %>% ggplot()+
 
 
 ```{r}
-districtsShp %>% filter (Year==2000|Year==2020) %>% 
+districtsShp %>% filter (Year==2000|Year==2020) %>% filter(ct_adcode==652700|ct_adcode==654000|ct_adcode==654200) %>% 
+  
   ggplot()+
+  geom_sf(aes(fill=Faixa), color=NA)+
   geom_sf(data=citiesShp %>% filter(ct_adcode==652700|ct_adcode==654000|ct_adcode==654200), aes(fill=NA), size=.2)+
+  
+  
   scale_fill_brewer(palette = "YlOrRd")+
+  
+    geom_text(data=citiesShp %>% filter(ct_adcode==652700|ct_adcode==654000|ct_adcode==654200), aes(x=x, y=y,label =ct_name),size=3, color="#404040")+
+  
   theme_bw()+
   theme(axis.text.x = element_text(size=6))+
   theme(axis.text.y = element_text(size=6))+
