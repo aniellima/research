@@ -69,8 +69,13 @@ districts<-districts %>% mutate(Faixa=factor(Faixa,
 ```{r, results=FALSE}
 chinaShp<-st_read("../processedData/shp/china/")
 districtsShp<-st_read("../processedData/shp/districts/districts.shp")%>%filter(pr_adcode!=710000)# filtra Taiwan fora. 
+
+
 citiesShp<-st_read("../processedData/shp/cities/") %>% filter(pr_adcode!=710000)# filtra Taiwan fora. 
+
 provincesShp<-st_read("../processedData/shp/provinces/provinces.shp") %>% filter(pr_adcode!=710000)# filtra Taiwan fora. 
+
+
 tianShanB<-st_read("../processedData/shp/tianshan/tianShanOutter.shp")
 tianShanShp<-st_read("../processedData/shp/tianshan/tianshan.shp")
 ```
@@ -169,5 +174,72 @@ tianShanShp %>% filter (Year==2000|Year==2020)%>%
   theme(axis.title.y = element_blank())+
   facet_wrap(~Year)+
   ggtitle("Densidade por distrito(2000-2020)")
+
 ```
 
+* Vamos projetar agora apenas as prefeituras de Ili e de Boertala
+
+```{r}
+tianShanShp%>%filter(ct_adcode==653007|ct_adcode==659007|ct_adcode==659008)
+```
+
+```{r}
+# Filtra poligonos 
+ZeesFronShp<-tianShanShp %>% filter(ct_adcode==652700|ct_adcode==654000|ct_adcode==654200| ct_adcode==653007|ct_adcode==659007|ct_adcode==659008)
+
+
+ZeesFronOut<-st_union(ZeesFronShp)
+
+library(rgeos)
+#Create XY coordinations for the shp and join it with the the shp file
+centroid <- gCentroid(as(ZeesFronOut, "Spatial"), byid = TRUE)
+
+# transform in tibble to join after
+centroid<-centroid%>%as_tibble()
+ZeesFronOut<-ZeesFronOut%>%as_tibble()
+ZeesFronOut<-cbind(centroid, ZeesFronOut)
+
+# reconvert to sf
+ZeesFronOut<-ZeesFronOut%>%st_as_sf(crs=4326)
+```
+
+
+
+```{r}
+# Tratando os erros de nomes do banco de cidades
+citiesNames<-districts %>% dplyr::select(ct_adcode, ct_name, pr_name, cn_name) %>% distinct(ct_adcode, ct_name, pr_name, cn_name)
+
+citiesShp<-citiesShp %>% dplyr::select(-c(ct_name, pr_name, cn_name))
+
+citiesShp<-left_join(citiesShp, citiesNames, by="ct_adcode") 
+
+```
+
+
+
+```{r}
+ZeesFronOut %>% ggplot()+ 
+  geom_sf(data=citiesShp %>% filter(ct_adcode==652700|ct_adcode==654000|ct_adcode==654200), aes(fill=ct_name), size=.2)+
+  geom_text(data=citiesShp %>% filter(ct_adcode==652700|ct_adcode==654000|ct_adcode==654200), aes(x=x, y=y,label =ct_name),size=5, color="#404040")+  
+  theme_bw()+
+  labs(title = "Prefeituras/cidades com zonas de cooperacão transfronteiricas")
+  
+
+```
+
+
+
+```{r}
+districtsShp %>% filter (Year==2000|Year==2020) %>% 
+  ggplot()+
+  geom_sf(data=citiesShp %>% filter(ct_adcode==652700|ct_adcode==654000|ct_adcode==654200), aes(fill=NA), size=.2)+
+  scale_fill_brewer(palette = "YlOrRd")+
+  theme_bw()+
+  theme(axis.text.x = element_text(size=6))+
+  theme(axis.text.y = element_text(size=6))+
+  theme(axis.title.x = element_blank())+
+  theme(axis.title.y = element_blank())+
+  facet_wrap(~Year)+
+  ggtitle("Densidade por distrito(2000-2020)")
+
+```
