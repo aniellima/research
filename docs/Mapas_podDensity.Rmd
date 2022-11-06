@@ -250,3 +250,11 @@ districtsShp %>% filter (Year==2000|Year==2020) %>% filter(ct_adcode==652700|ct_
   ggtitle("Densidade por distrito(2000-2020)")
 
 ```
+
+
+
+```{r}
+x<-districts %>% filter (Year==2000|Year==2020) %>% filter(ct_adcode==652700|ct_adcode==654000|ct_adcode==654200) %>% group_by(Year,ct_adcode) %>%  mutate(PopTotal = sum(POP))
+
+x %>% distinct(PopTotal, ct_name, Year) %>% arrange(ct_name)
+```
